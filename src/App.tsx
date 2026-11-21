@@ -5,9 +5,8 @@ import { ProfileSettings } from "./components/ProfileSettings";
 import { ProfileSummary } from "./components/ProfileSummary";
 import { SavedWalksHistory } from "./components/SavedWalksHistory";
 import { WalkCalculator } from "./components/WalkCalculator";
-import { WalkResults } from "./components/WalkResults";
 import { Button, StatCell, fmt } from "./components/ui";
-import { calculateAge, parseCalcInputs, runCalculation, signatureOf } from "./lib/calc";
+import { calculateAge, runCalculation } from "./lib/calc";
 import {
   loadCalcInputs,
   loadHistory,
@@ -34,22 +33,9 @@ export default function App() {
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const [inputs, setInputs] = useState<CalcInputs>(() => loadCalcInputs());
   const [history, setHistory] = useState<Workout[]>(() => loadHistory());
+  const [latestResult, setLatestResult] = useState<CalculationResult | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<number | null>(null);
-
-  const [lastValid, setLastValid] = useState<CalcNumbers | null>(() => {
-    const parsed = parseCalcInputs(loadCalcInputs());
-    return parsed.values;
-  });
-  const [result, setResult] = useState<CalculationResult | null>(() => {
-    const parsed = parseCalcInputs(loadCalcInputs());
-    if (!parsed.values) return null;
-    try {
-      return runCalculation(parsed.values, loadProfile());
-    } catch {
-      return null;
-    }
-  });
 
   const age = calculateAge(profile.dateOfBirth);
 
@@ -72,13 +58,6 @@ export default function App() {
     saveHistory(history);
   }, [history]);
 
-  /* ------------------------------------- keep results in step with profile -- */
-  useEffect(() => {
-    if (!lastValid) return;
-    setResult(runCalculation(lastValid, profile));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile.weightKg, profile.heightCm, age]);
-
   /* ------------------------------------------------------------- toast -- */
   function notify(message: string, kind: Toast["kind"] = "success") {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -99,41 +78,55 @@ export default function App() {
   }
 
   function handleCalculate(values: CalcNumbers) {
-    setLastValid(values);
     try {
-      setResult(runCalculation(values, profile));
-      notify(`${fmt.whole(runCalculation(values, profile).netActiveCalories)} kcal`, "info");
+      const calc = runCalculation(values, profile);
+      setLatestResult(calc);
+      notify(`${fmt.whole(calc.netActiveCalories)} kcal`, "info");
     } catch {
       notify("Error", "error");
     }
   }
 
   const alreadySaved = useMemo(
-    () => (result ? history.some((w) => w.signature === result.signature) : false),
-    [result, history],
+    () => (latestResult ? history.some((w) => w.signature === latestResult.signature) : false),
+    [latestResult, history],
   );
 
   function handleSaveWorkout() {
-    if (!result) return;
-    if (history.some((w) => w.signature === result.signature)) {
+    if (!latestResult) return;
+    if (history.some((w) => w.signature === latestResult.signature)) {
       notify("Already saved", "info");
+      setLatestResult(null);
       return;
     }
-    const workout: Workout = { ...result, id: makeId(), savedAt: Date.now() };
+    const workout: Workout = { ...latestResult, id: makeId(), savedAt: Date.now() };
     setHistory((prev) =>
       [workout, ...prev].sort((a, b) => b.savedAt - a.savedAt),
     );
-    notify(`${fmt.whole(result.netActiveCalories)} kcal`);
+    setLatestResult(null);
+    notify(`${fmt.whole(workout.netActiveCalories)} kcal`);
+  }
+
+  function handleUpdateWorkout(id: string, values: CalcNumbers) {
+    setHistory((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updatedCalc = runCalculation(values, profile);
+        return {
+          ...item,
+          ...updatedCalc,
+          id: item.id,
+          savedAt: item.savedAt,
+        };
+      }),
+    );
+    notify("Updated", "success");
   }
 
   function handleDelete(id: string) {
     setHistory((prev) => prev.filter((w) => w.id !== id));
     notify("Deleted", "info");
   }
-
-  const currentSignature =
-    lastValid !== null ? signatureOf(lastValid, profile, age) : null;
-  const stale = Boolean(result && currentSignature && result.signature !== currentSignature);
 
   /* ------------------------------------------------------------- views -- */
   return (
@@ -162,14 +155,17 @@ export default function App() {
               inputs={inputs}
               onInputsChange={setInputs}
               onCalculate={handleCalculate}
-              result={result}
-              stale={stale}
+              latestResult={latestResult}
               alreadySaved={alreadySaved}
               onSaveWorkout={handleSaveWorkout}
             />
           )}
           {page === "history" && (
-            <HistoryView workouts={history} onDelete={handleDelete} />
+            <HistoryView
+              workouts={history}
+              onDelete={handleDelete}
+              onUpdate={handleUpdateWorkout}
+            />
           )}
         </div>
       </main>
@@ -236,8 +232,7 @@ function CalculatorView({
   inputs,
   onInputsChange,
   onCalculate,
-  result,
-  stale,
+  latestResult,
   alreadySaved,
   onSaveWorkout,
 }: {
@@ -246,8 +241,7 @@ function CalculatorView({
   inputs: CalcInputs;
   onInputsChange: (i: CalcInputs) => void;
   onCalculate: (v: CalcNumbers) => void;
-  result: CalculationResult | null;
-  stale: boolean;
+  latestResult: CalculationResult | null;
   alreadySaved: boolean;
   onSaveWorkout: () => void;
 }) {
@@ -297,20 +291,25 @@ function CalculatorView({
         <div className="lg:col-span-5 lg:sticky lg:top-20 lg:self-start">
           <WalkCalculator inputs={inputs} onChange={onInputsChange} onCalculate={onCalculate} />
         </div>
-        <div className="lg:col-span-7">
-          {result ? (
-            <WalkResults
-              result={result}
-              onSave={onSaveWorkout}
-              alreadySaved={alreadySaved}
-              stale={stale}
-            />
-          ) : (
-            <section className="rounded-2xl border border-dashed border-line bg-panel px-6 py-12 text-center">
-              <div className="label">0 kcal</div>
+
+        {latestResult && (
+          <div className="lg:col-span-7">
+            <section className="rounded-2xl border border-line bg-panel p-6 anim-rise">
+              <div className="label text-signal mb-2">Net active calories burned</div>
+              <div className="flex items-baseline gap-2.5">
+                <span className="tnum text-[48px] font-extrabold leading-none tracking-tighter">
+                  {fmt.whole(latestResult.netActiveCalories)}
+                </span>
+                <span className="font-mono text-[13px] text-signal">kcal</span>
+              </div>
+              <div className="mt-5">
+                <Button onClick={onSaveWorkout} disabled={alreadySaved}>
+                  {alreadySaved ? "Already saved" : "Save walk"}
+                </Button>
+              </div>
             </section>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -321,9 +320,11 @@ function CalculatorView({
 function HistoryView({
   workouts,
   onDelete,
+  onUpdate,
 }: {
   workouts: Workout[];
   onDelete: (id: string) => void;
+  onUpdate: (id: string, values: CalcNumbers) => void;
 }) {
   return (
     <>
@@ -337,7 +338,7 @@ function HistoryView({
         </h1>
       </header>
 
-      <SavedWalksHistory workouts={workouts} onDelete={onDelete} />
+      <SavedWalksHistory workouts={workouts} onDelete={onDelete} onUpdate={onUpdate} />
     </>
   );
 }
