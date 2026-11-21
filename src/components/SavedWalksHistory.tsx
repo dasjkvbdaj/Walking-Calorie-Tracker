@@ -397,11 +397,11 @@ export function SavedWalksHistory({
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-void/75 px-4 backdrop-blur-xs anim-fade"
+          className="fixed top-0 left-0 z-50 flex h-dvh w-screen items-center justify-center overflow-y-auto bg-void/75 px-4 py-6 backdrop-blur-xs anim-fade"
           onClick={closeEditModal}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 shadow-[0_20px_50px_rgba(0,0,0,0.45)] anim-rise"
+            className="my-auto w-full max-w-md rounded-2xl border border-line bg-panel p-6 shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 mb-4">
@@ -479,11 +479,11 @@ export function SavedWalksHistory({
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-void/75 px-4 backdrop-blur-xs anim-fade"
+          className="fixed top-0 left-0 z-50 flex h-dvh w-screen items-center justify-center overflow-y-auto bg-void/75 px-4 py-6 backdrop-blur-xs anim-fade"
           onClick={() => setPendingDelete(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-line bg-panel p-6 shadow-[0_20px_50px_rgba(0,0,0,0.45)] anim-rise"
+            className="my-auto w-full max-w-sm rounded-2xl border border-line bg-panel p-6 shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="label text-coral mb-2">Delete workout</div>
