@@ -4,17 +4,50 @@
   --font-display: "Archivo", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-void: #0a0c0b;
-  --color-panel: #101413;
-  --color-panel2: #151a19;
-  --color-line: #232b29;
-  --color-linesoft: #1a211f;
-  --color-ink: #e9efea;
-  --color-muted: #8b968f;
-  --color-dim: #5f6a64;
-  --color-signal: #c7f94d;
-  --color-signalsoft: #a8d93f;
-  --color-coral: #ff6b5a;
+  --color-void: var(--theme-void);
+  --color-panel: var(--theme-panel);
+  --color-panel2: var(--theme-panel2);
+  --color-line: var(--theme-line);
+  --color-linesoft: var(--theme-linesoft);
+  --color-ink: var(--theme-ink);
+  --color-muted: var(--theme-muted);
+  --color-dim: var(--theme-dim);
+  --color-signal: var(--theme-signal);
+  --color-signalsoft: var(--theme-signalsoft);
+  --color-coral: var(--theme-coral);
+}
+
+:root,
+:root[data-theme="dark"] {
+  --theme-void: #0a0c0b;
+  --theme-panel: #101413;
+  --theme-panel2: #151a19;
+  --theme-line: #232b29;
+  --theme-linesoft: #1a211f;
+  --theme-ink: #e9efea;
+  --theme-muted: #8b968f;
+  --theme-dim: #5f6a64;
+  --theme-signal: #c7f94d;
+  --theme-signalsoft: #a8d93f;
+  --theme-coral: #ff6b5a;
+  --theme-primary-ink: #0a0c0b;
+  --theme-primary-hover: #d8ff6e;
+}
+
+:root[data-theme="light"] {
+  --theme-void: #f7f9f8;
+  --theme-panel: #ffffff;
+  --theme-panel2: #eff4f1;
+  --theme-line: #dce4df;
+  --theme-linesoft: #e8efeb;
+  --theme-ink: #131b17;
+  --theme-muted: #526059;
+  --theme-dim: #78877f;
+  --theme-signal: #4f8a10;
+  --theme-signalsoft: #3f710b;
+  --theme-coral: #d9483b;
+  --theme-primary-ink: #ffffff;
+  --theme-primary-hover: #42750c;
 }
 
 html {
@@ -30,6 +63,16 @@ body {
   font-synthesis-weight: none;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-primary-action {
+  background-color: var(--color-signal);
+  color: var(--theme-primary-ink);
+}
+
+.btn-primary-action:hover {
+  background-color: var(--theme-primary-hover);
 }
 
 /* Instrument-style data labels: tracked mono small caps */
