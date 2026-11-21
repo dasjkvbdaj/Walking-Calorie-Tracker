@@ -1,19 +1,25 @@
-import { Footprints, UserRound } from "lucide-react";
+import { Footprints, History, Moon, Sun, UserRound } from "lucide-react";
+import type { ThemeMode } from "../lib/storage";
 import { cn } from "../utils/cn";
 
-export type Page = "profile" | "calculator";
+export type Page = "profile" | "calculator" | "history";
 
 const ITEMS: Array<{ id: Page; label: string; short: string; Icon: typeof UserRound }> = [
   { id: "profile", label: "Profile & Settings", short: "Profile", Icon: UserRound },
   { id: "calculator", label: "Walk Calculator", short: "Calculator", Icon: Footprints },
+  { id: "history", label: "History", short: "History", Icon: History },
 ];
 
 export function Navigation({
   page,
   onChange,
+  theme,
+  onToggleTheme,
 }: {
   page: Page;
   onChange: (p: Page) => void;
+  theme: ThemeMode;
+  onToggleTheme: () => void;
 }) {
   return (
     <>
@@ -23,39 +29,65 @@ export function Navigation({
           <div className="flex items-center gap-2.5 select-none">
             <span className="h-3 w-3 rounded-[3px] bg-signal" aria-hidden />
             <span className="text-[15px] font-extrabold tracking-[0.2em]">CADENCE</span>
-            <span className="hidden lg:inline label pt-0.5 pl-2 border-l border-line">
-              Net active calorie ledger
-            </span>
           </div>
-          <nav className="flex items-center gap-1" aria-label="Main">
-            {ITEMS.map(({ id, label, short, Icon }) => {
-              const active = page === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => onChange(id)}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "group relative flex items-center gap-2 rounded-lg px-4 py-2.5 text-[13.5px] font-semibold transition-colors duration-150",
-                    active ? "text-signal" : "text-muted hover:text-ink",
-                  )}
-                >
-                  <Icon size={15} strokeWidth={2.2} />
-                  <span className="hidden lg:inline">{label}</span>
-                  <span className="lg:hidden">{short}</span>
-                  <span
+          <div className="flex items-center gap-3">
+            <nav className="flex items-center gap-1" aria-label="Main">
+              {ITEMS.map(({ id, label, short, Icon }) => {
+                const active = page === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => onChange(id)}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
-                      "absolute inset-x-3 -bottom-[1px] h-[2px] rounded-full bg-signal transition-transform duration-200 origin-center",
-                      active ? "scale-x-100" : "scale-x-0",
+                      "group relative flex items-center gap-2 rounded-lg px-4 py-2.5 text-[13.5px] font-semibold transition-colors duration-150",
+                      active ? "text-signal" : "text-muted hover:text-ink",
                     )}
-                    aria-hidden
-                  />
-                </button>
-              );
-            })}
-          </nav>
+                  >
+                    <Icon size={15} strokeWidth={2.2} />
+                    <span className="hidden lg:inline">{label}</span>
+                    <span className="lg:hidden">{short}</span>
+                    <span
+                      className={cn(
+                        "absolute inset-x-3 -bottom-[1px] h-[2px] rounded-full bg-signal transition-transform duration-200 origin-center",
+                        active ? "scale-x-100" : "scale-x-0",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                );
+              })}
+            </nav>
+
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 font-mono text-[11px] text-ink transition-colors hover:border-signal/60 hover:text-signal"
+            >
+              {theme === "dark" ? <Sun size={14} strokeWidth={2.2} /> : <Moon size={14} strokeWidth={2.2} />}
+              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Mobile top theme bar */}
+      <div className="md:hidden flex items-center justify-between border-b border-line bg-panel px-4 py-2.5">
+        <div className="flex items-center gap-2 select-none">
+          <span className="h-2.5 w-2.5 rounded-[2px] bg-signal" aria-hidden />
+          <span className="text-[13px] font-extrabold tracking-[0.18em]">CADENCE</span>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-panel2 px-2.5 py-1.5 font-mono text-[10.5px] text-ink"
+        >
+          {theme === "dark" ? <Sun size={13} strokeWidth={2.2} /> : <Moon size={13} strokeWidth={2.2} />}
+          <span>{theme === "dark" ? "Light" : "Dark"}</span>
+        </button>
+      </div>
 
       {/* Mobile bottom bar */}
       <nav
@@ -63,7 +95,7 @@ export function Navigation({
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Main"
       >
-        <div className="grid grid-cols-2">
+        <div className="grid grid-cols-3">
           {ITEMS.map(({ id, label, short, Icon }) => {
             const active = page === id;
             return (
