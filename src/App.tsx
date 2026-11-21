@@ -12,9 +12,12 @@ import {
   loadCalcInputs,
   loadHistory,
   loadProfile,
+  loadTheme,
   saveCalcInputs,
   saveHistory,
   saveProfile,
+  saveTheme,
+  type ThemeMode,
 } from "./lib/storage";
 import type { CalcInputs, CalcNumbers, CalculationResult, Profile, Workout } from "./lib/types";
 
@@ -27,13 +30,13 @@ function makeId(): string {
 export default function App() {
   /* ---------------------------------------------------------- state -- */
   const [page, setPage] = useState<Page>("calculator");
+  const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const [inputs, setInputs] = useState<CalcInputs>(() => loadCalcInputs());
   const [history, setHistory] = useState<Workout[]>(() => loadHistory());
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<number | null>(null);
 
-  // First result derived from persisted inputs so a refresh never shows a blank board.
   const [lastValid, setLastValid] = useState<CalcNumbers | null>(() => {
     const parsed = parseCalcInputs(loadCalcInputs());
     return parsed.values;
@@ -52,6 +55,11 @@ export default function App() {
 
   /* ------------------------------------------------------- persistence -- */
   useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    saveTheme(theme);
+  }, [theme]);
+
+  useEffect(() => {
     saveCalcInputs(inputs);
   }, [inputs]);
 
@@ -69,7 +77,7 @@ export default function App() {
     if (!lastValid) return;
     setResult(runCalculation(lastValid, profile));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile.weightKg, profile.heightCm]);
+  }, [profile.weightKg, profile.heightCm, age]);
 
   /* ------------------------------------------------------------- toast -- */
   function notify(message: string, kind: Toast["kind"] = "success") {
@@ -80,19 +88,23 @@ export default function App() {
   }
 
   /* ---------------------------------------------------------- actions -- */
+  function handleToggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }
+
   function handleSaveProfile(next: Profile) {
     setProfile(next);
     saveProfile(next);
-    notify(`Profile updated — ${fmt.one(next.weightKg)} kg · ${fmt.one(next.heightCm)} cm recalculated`);
+    notify(`${fmt.one(next.weightKg)} kg · ${fmt.one(next.heightCm)} cm`);
   }
 
   function handleCalculate(values: CalcNumbers) {
     setLastValid(values);
     try {
       setResult(runCalculation(values, profile));
-      notify("Net active calories calculated", "info");
+      notify(`${fmt.whole(runCalculation(values, profile).netActiveCalories)} kcal`, "info");
     } catch {
-      notify("Could not calculate with these inputs", "error");
+      notify("Error", "error");
     }
   }
 
@@ -104,19 +116,19 @@ export default function App() {
   function handleSaveWorkout() {
     if (!result) return;
     if (history.some((w) => w.signature === result.signature)) {
-      notify("This walk is already saved", "info");
+      notify("Already saved", "info");
       return;
     }
     const workout: Workout = { ...result, id: makeId(), savedAt: Date.now() };
     setHistory((prev) =>
       [workout, ...prev].sort((a, b) => b.savedAt - a.savedAt),
     );
-    notify(`Walk saved — ${fmt.whole(result.netActiveCalories)} kcal net active`);
+    notify(`${fmt.whole(result.netActiveCalories)} kcal`);
   }
 
   function handleDelete(id: string) {
     setHistory((prev) => prev.filter((w) => w.id !== id));
-    notify("Workout deleted", "info");
+    notify("Deleted", "info");
   }
 
   const currentSignature =
@@ -126,18 +138,24 @@ export default function App() {
   /* ------------------------------------------------------------- views -- */
   return (
     <div className="min-h-screen bg-void">
-      <Navigation page={page} onChange={setPage} />
+      <Navigation
+        page={page}
+        onChange={setPage}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+      />
 
       <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-32 sm:px-6 md:pt-10 md:pb-20 lg:px-8">
         <div key={page} className="anim-rise">
-          {page === "profile" ? (
+          {page === "profile" && (
             <ProfileView
               profile={profile}
               age={age}
               onSave={handleSaveProfile}
               onGoToCalculator={() => setPage("calculator")}
             />
-          ) : (
+          )}
+          {page === "calculator" && (
             <CalculatorView
               profile={profile}
               age={age}
@@ -148,19 +166,12 @@ export default function App() {
               stale={stale}
               alreadySaved={alreadySaved}
               onSaveWorkout={handleSaveWorkout}
-              history={history}
-              onDelete={handleDelete}
             />
           )}
+          {page === "history" && (
+            <HistoryView workouts={history} onDelete={handleDelete} />
+          )}
         </div>
-
-        <footer className="mt-10 flex flex-col gap-2 border-t border-line pt-5 font-mono text-[10.5px] text-dim sm:flex-row sm:items-center sm:justify-between">
-          <span>Cadence · net active calorie ledger</span>
-          <span>
-            Estimates only — MET, Mifflin-St Jeor BMR and gross-minus-resting model. Data stays in
-            this browser.
-          </span>
-        </footer>
       </main>
 
       <ToastView toast={toast} />
@@ -186,17 +197,11 @@ function ProfileView({
       <header className="mb-6 md:mb-8">
         <div className="label mb-3 flex items-center gap-2">
           <span className="h-px w-6 bg-signal" aria-hidden />
-          Page 01 · Profile &amp; Settings
+          Profile &amp; Settings
         </div>
         <h1 className="text-[clamp(2rem,6vw,3.4rem)] font-extrabold leading-[0.95] tracking-[-0.04em]">
-          Your measurements,
-          <br />
-          <span className="text-signal">locked to the record.</span>
+          Profile
         </h1>
-        <p className="mt-4 max-w-xl font-mono text-[12.5px] leading-relaxed text-muted">
-          Date of birth and gender are fixed record fields. Weight and height feed every calorie
-          calculation on the walk calculator — update them here and results recalculate instantly.
-        </p>
       </header>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
@@ -207,7 +212,6 @@ function ProfileView({
           <ProfileSettings profile={profile} onSave={onSave} />
 
           <section className="rounded-2xl border border-line bg-panel px-5 py-5 md:px-6">
-            <div className="label mb-3">Live from your record</div>
             <div className="-mx-1 grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
               <div className="bg-panel"><StatCell label="Age" value={String(age)} unit="yrs" /></div>
               <div className="bg-panel"><StatCell label="Gender" value="Male" /></div>
@@ -215,7 +219,7 @@ function ProfileView({
               <div className="bg-panel"><StatCell label="Height" value={fmt.one(profile.heightCm)} unit="cm" /></div>
             </div>
             <Button variant="ghost" className="mt-5 w-full sm:w-auto" onClick={onGoToCalculator}>
-              Open walk calculator <ArrowRight size={15} strokeWidth={2.4} />
+              Walk Calculator <ArrowRight size={15} strokeWidth={2.4} />
             </Button>
           </section>
         </div>
@@ -236,8 +240,6 @@ function CalculatorView({
   stale,
   alreadySaved,
   onSaveWorkout,
-  history,
-  onDelete,
 }: {
   profile: Profile;
   age: number;
@@ -248,8 +250,6 @@ function CalculatorView({
   stale: boolean;
   alreadySaved: boolean;
   onSaveWorkout: () => void;
-  history: Workout[];
-  onDelete: (id: string) => void;
 }) {
   const strip = [
     { label: "Age", value: String(age), unit: "yrs" },
@@ -260,7 +260,6 @@ function CalculatorView({
 
   return (
     <>
-      {/* Hero band */}
       <header className="relative overflow-hidden rounded-2xl border border-line grain mb-5">
         <img
           src="images/tread.jpg"
@@ -276,26 +275,15 @@ function CalculatorView({
         <div className="relative px-5 py-6 sm:px-7 sm:py-8 md:px-8 md:py-10">
           <div className="label mb-3 flex items-center gap-2">
             <span className="h-px w-6 bg-signal" aria-hidden />
-            Page 02 · Walk Calorie Calculator
+            Walk Calculator
           </div>
           <h1 className="max-w-md text-[clamp(1.9rem,5.4vw,3rem)] font-extrabold leading-[0.96] tracking-[-0.04em]">
-            Steps in.
-            <br />
-            <span className="text-signal">Net active energy out.</span>
+            Walk Calculator
           </h1>
-          <p className="mt-3 max-w-sm font-mono text-[11.5px] leading-relaxed text-muted">
-            Gross walking calories minus the resting energy you would have burned anyway — the
-            effort you actually added.
-          </p>
         </div>
       </header>
 
-      {/* Synchronized profile strip */}
       <section className="mb-5 overflow-hidden rounded-2xl border border-line bg-panel">
-        <div className="flex items-center justify-between px-4 py-2.5 sm:px-5 border-b border-line">
-          <span className="label">Active profile · synced with settings</span>
-          <span className="hidden font-mono text-[10px] text-dim sm:inline">record 2004-12-08</span>
-        </div>
         <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
           {strip.map((s) => (
             <div key={s.label} className="bg-panel">
@@ -319,20 +307,37 @@ function CalculatorView({
             />
           ) : (
             <section className="rounded-2xl border border-dashed border-line bg-panel px-6 py-12 text-center">
-              <div className="label mb-3">Awaiting inputs</div>
-              <p className="mx-auto max-w-sm font-mono text-[12px] leading-relaxed text-muted">
-                Enter distance and duration, then press{" "}
-                <span className="text-signal">Calculate net calories</span>. Invalid values such as
-                negative distance or zero duration are blocked before any math runs.
-              </p>
+              <div className="label">0 kcal</div>
             </section>
           )}
         </div>
       </div>
+    </>
+  );
+}
 
-      <div className="mt-5">
-        <SavedWalksHistory workouts={history} onDelete={onDelete} />
-      </div>
+/* ========================================================== history page */
+
+function HistoryView({
+  workouts,
+  onDelete,
+}: {
+  workouts: Workout[];
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <>
+      <header className="mb-6 md:mb-8">
+        <div className="label mb-3 flex items-center gap-2">
+          <span className="h-px w-6 bg-signal" aria-hidden />
+          History
+        </div>
+        <h1 className="text-[clamp(2rem,6vw,3.4rem)] font-extrabold leading-[0.95] tracking-[-0.04em]">
+          History
+        </h1>
+      </header>
+
+      <SavedWalksHistory workouts={workouts} onDelete={onDelete} />
     </>
   );
 }
