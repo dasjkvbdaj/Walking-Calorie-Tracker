@@ -27,8 +27,8 @@ function cadencePwaPlugin(): Plugin {
       }
 
       const manifest = {
-        name: "Cadence — Walking & Net Active Calorie Tracker",
-        short_name: "Cadence",
+        name: "Walking Steps Calorie",
+        short_name: "Walking Steps Calorie",
         description: "Walking and net active calorie tracker",
         start_url: "/",
         scope: "/",
