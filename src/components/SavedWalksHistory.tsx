@@ -397,7 +397,7 @@ export function SavedWalksHistory({
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-modal-title"
-          className="fixed top-0 left-0 z-50 flex h-dvh w-screen items-center justify-center overflow-y-auto bg-void/75 px-4 py-6 backdrop-blur-xs anim-fade"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-void/75 p-4 backdrop-blur-xs anim-fade"
           onClick={closeEditModal}
         >
           <div
@@ -479,7 +479,7 @@ export function SavedWalksHistory({
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-modal-title"
-          className="fixed top-0 left-0 z-50 flex h-dvh w-screen items-center justify-center overflow-y-auto bg-void/75 px-4 py-6 backdrop-blur-xs anim-fade"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-void/75 p-4 backdrop-blur-xs anim-fade"
           onClick={() => setPendingDelete(null)}
         >
           <div
