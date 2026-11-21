@@ -45,7 +45,6 @@ export function ProfileSettings({
   const [errors, setErrors] = useState<Errors>({});
   const [saved, setSaved] = useState(false);
 
-  // Re-sync when the stored profile changes elsewhere (e.g. reset).
   useEffect(() => {
     setWeight(String(profile.weightKg));
     setHeight(String(profile.heightCm));
@@ -76,7 +75,7 @@ export function ProfileSettings({
 
   return (
     <Panel className="anim-rise" as="div">
-      <SectionHead index="02" title="Physical measurements" hint="Stored locally" />
+      <SectionHead index="02" title="Physical measurements" />
       <form onSubmit={handleSubmit} className="px-5 pb-6 md:px-6 space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field
@@ -91,7 +90,6 @@ export function ProfileSettings({
             unit="kg"
             placeholder="113.2"
             error={errors.weightKg}
-            hint="Default 113.2 kg · decimals allowed"
           />
           <Field
             label="Height"
@@ -105,16 +103,7 @@ export function ProfileSettings({
             unit="cm"
             placeholder="177"
             error={errors.heightCm}
-            hint="Default 177 cm · decimals allowed"
           />
-        </div>
-
-        <div className="rounded-xl border border-line bg-panel2 px-4 py-3">
-          <div className="label mb-1.5">Used for every calculation</div>
-          <p className="font-mono text-[11.5px] leading-relaxed text-muted">
-            BMR (Mifflin-St Jeor, male) = 10×weight + 6.25×height − 5×age + 5.
-            Weight drives gross walking calories; both feed the net active result.
-          </p>
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3">
@@ -127,11 +116,6 @@ export function ProfileSettings({
             Reset fields
           </Button>
           <div className="sm:ml-auto min-h-[20px]" role="status" aria-live="polite">
-            {saved && (
-              <span className="anim-fade inline-flex items-center gap-2 font-mono text-[11.5px] text-signal">
-                <Check size={13} strokeWidth={3} /> Profile updated — calculator recalculated
-              </span>
-            )}
             {!saved && dirty && (
               <span className="font-mono text-[11.5px] text-muted">Unsaved changes</span>
             )}
