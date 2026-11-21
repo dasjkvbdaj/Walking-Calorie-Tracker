@@ -4,30 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0A0C0B" />
-    
-    <!-- Title & SEO Description -->
     <title>Cadence — Walking &amp; Net Active Calorie Tracker</title>
     <meta
       name="description"
       content="Cadence — A precise ledger for tracking net active calories burned during walking sessions. Profile settings and MET-based calculator included."
     />
 
-    <!-- Open Graph / SEO Image (يتم حقن الرابط الفعلي هنا بواسطة السكริپت أدناه) -->
+    <!-- Open Graph / SEO Image -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Cadence — Walking Calorie Tracker" />
     <meta property="og:description" content="Track your net active walking calories accurately." />
-    <meta id="og-image-tag" property="og:image" content="" /> 
+    <meta property="og:image" content="" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta id="twitter-image-tag" name="twitter:image" content="" />
+    <meta name="twitter:image" content="" />
 
-    <!-- PWA Manifest & Icons (سيتم حقن الروابط هنا أيضاً) -->
-    <link id="manifest-tag" rel="manifest" href="" />
-    <link id="apple-touch-icon-tag" rel="apple-touch-icon" sizes="180x180" href="" />
-    <link id="icon-192-tag" rel="icon" type="image/png" sizes="192x192" href="" />
-    <link id="icon-512-tag" rel="icon" type="image/png" sizes="512x512" href="" />
-    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="" />
+    <link rel="apple-touch-icon" sizes="180x180" href="" />
+
     <link
       href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
@@ -36,56 +32,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- سكריپت لتحويل الصورة من src إلى Data URL ووضعها في مكانها الصحيح -->
-    <script type="module">
-      import iconUrl from '/src/icon.png?url';
-      
-      async function setAppIcons() {
-        // تحويل الرابط إلى Blob ثم إلى Data URL لاستخدامه في manifest والـ SEO tags
-        const response = await fetch(iconUrl);
-        const blob = await response.blob();
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = function() {
-          const base64data = reader.result;
-          
-          // تحديث meta tags للـ SEO
-          document.getElementById('og-image-tag').content = base64data;
-          document.getElementById('twitter-image-tag').content = base64data;
-          document.getElementById('apple-touch-icon-tag').href = base64data;
-          document.getElementById('icon-192-tag').href = base64data;
-          document.getElementById('icon-512-tag').href = base64data;
-
-          // توليد manifest ديناميكي
-          const manifest = {
-            "name": "Cadence — Walking Calorie Tracker",
-            "short_name": "Cadence",
-            "description": "Net active calorie ledger.",
-            "start_url": "/",
-            "display": "standalone",
-            "background_color": "#0A0C0B",
-            "theme_color": "#0A0C0B",
-            "icons": [
-              {
-                "src": base64data,
-                "sizes": "192x192",
-                "type": "image/png"
-              },
-              {
-                "src": base64data,
-                "sizes": "512x512",
-                "type": "image/png"
-              }
-            ]
-          };
-          const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-          document.getElementById('manifest-tag').href = URL.createObjectURL(manifestBlob);
-        }
-      }
-      
-      setAppIcons();
-    </script>
   </body>
 </html>
