@@ -1,10 +1,13 @@
 import { DATE_OF_BIRTH, FIXED_GENDER } from "./calc";
 import type { CalcInputs, Profile, Workout } from "./types";
 
+export type ThemeMode = "dark" | "light";
+
 export const STORAGE_KEYS = {
   profile: "walkTrackerProfile",
   history: "walkTrackerHistory",
   calculatorInputs: "walkTrackerCalculatorInputs",
+  theme: "walkTrackerTheme",
 } as const;
 
 export const DEFAULT_PROFILE: Profile = {
@@ -15,9 +18,9 @@ export const DEFAULT_PROFILE: Profile = {
 };
 
 export const DEFAULT_CALC_INPUTS: CalcInputs = {
-  steps: "5584",
-  distanceMi: "2.38",
-  durationMin: "50",
+  steps: "",
+  distanceMi: "",
+  durationMin: "",
   speedMph: "",
 };
 
@@ -49,6 +52,17 @@ function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
+/* ---------------------------------------------------------------- theme -- */
+
+export function loadTheme(): ThemeMode {
+  const stored = readRaw(STORAGE_KEYS.theme);
+  return stored === "light" || stored === "dark" ? stored : "dark";
+}
+
+export function saveTheme(theme: ThemeMode): void {
+  writeRaw(STORAGE_KEYS.theme, theme);
+}
+
 /* -------------------------------------------------------------- profile -- */
 
 export function loadProfile(): Profile {
@@ -62,7 +76,7 @@ export function loadProfile(): Profile {
   return {
     weightKg: round1dp(weightKg),
     heightCm: round1dp(heightCm),
-    dateOfBirth: DATE_OF_BIRTH, // fixed by spec — never taken from storage
+    dateOfBirth: DATE_OF_BIRTH,
     gender: FIXED_GENDER,
   };
 }
