@@ -222,33 +222,19 @@ export function SavedWalksHistory({
         {/* Filter controls */}
         <div className="border-b border-line bg-panel2/60 px-5 py-3.5 md:px-6 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                { id: "all", label: "All records" },
-                { id: "today", label: "Today" },
-                { id: "date", label: "Specific date" },
-                { id: "week", label: "Selected week" },
-                { id: "month", label: "Selected month" },
-                { id: "range", label: "Custom range" },
-              ] as const
-            ).map((item) => {
-              const active = filterMode === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleSelectFilter(item.id)}
-                  className={cn(
-                    "rounded-lg border px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors",
-                    active
-                      ? "border-signal bg-signal/15 text-signal"
-                      : "border-line bg-panel text-muted hover:text-ink",
-                  )}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+            <select
+              value={filterMode}
+              aria-label="Filter"
+              onChange={(e) => handleSelectFilter(e.target.value as FilterMode)}
+              className="rounded-xl border border-line bg-panel px-3.5 py-2 font-mono text-[11.5px] font-medium text-ink outline-none transition-colors focus:border-signal/70"
+            >
+              <option value="all">All records</option>
+              <option value="today">Today</option>
+              <option value="date">Specific date</option>
+              <option value="week">Selected week</option>
+              <option value="month">Selected month</option>
+              <option value="range">Custom range</option>
+            </select>
           </div>
 
           {filterMode === "today" && (
