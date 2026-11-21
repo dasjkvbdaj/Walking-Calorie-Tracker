@@ -137,7 +137,7 @@ export function Button({
   const base =
     "inline-flex items-center justify-center gap-2 rounded-xl px-5 min-h-[48px] text-[14px] font-semibold tracking-tight transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-signal/40 focus-visible:ring-offset-2 focus-visible:ring-offset-void disabled:opacity-45 disabled:pointer-events-none";
   const variants: Record<ButtonVariant, string> = {
-    primary: "bg-signal text-void hover:bg-[#d8ff6e] active:translate-y-px",
+    primary: "btn-primary-action active:translate-y-px",
     ghost: "border border-line text-ink hover:border-signal/60 hover:text-signal active:translate-y-px",
     quiet: "text-muted hover:text-ink",
     danger: "border border-coral/40 text-coral hover:bg-coral/10",
