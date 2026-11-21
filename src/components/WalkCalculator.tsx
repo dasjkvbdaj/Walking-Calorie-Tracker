@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Calculator, RotateCcw, Wand2 } from "lucide-react";
+import { Calculator } from "lucide-react";
 import {
   calculateSpeedMph,
   milesToKm,
@@ -49,11 +49,7 @@ export function WalkCalculator({
     setErrors(errs);
     if (!values) return;
     onCalculate(values);
-  }
-
-  function handleReset() {
-    onChange({ steps: "5584", distanceMi: "2.38", durationMin: "50", speedMph: "" });
-    setErrors({});
+    onChange({ steps: "", distanceMi: "", durationMin: "", speedMph: "" });
     setAttempted(false);
   }
 
@@ -61,7 +57,7 @@ export function WalkCalculator({
 
   return (
     <Panel className="anim-rise" as="div">
-      <SectionHead index="01" title="Walk inputs" hint="Auto-saved locally" />
+      <SectionHead index="01" title="Walk inputs" />
 
       <div className="px-5 pb-6 md:px-6 space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -72,9 +68,8 @@ export function WalkCalculator({
             onChange={set("steps")}
             unit="steps"
             inputMode="numeric"
-            placeholder="5584"
+            placeholder="0"
             error={errors.steps}
-            hint="Used for cadence & stride length"
           />
           <Field
             label="Distance"
@@ -82,12 +77,12 @@ export function WalkCalculator({
             value={inputs.distanceMi}
             onChange={set("distanceMi")}
             unit="mi"
-            placeholder="2.38"
+            placeholder="0.00"
             error={errors.distanceMi}
             hint={
               distanceKm !== null && !errors.distanceMi
-                ? `= ${fmt.two(distanceKm)} km  (mi × 1.60934)`
-                : "Required · miles"
+                ? `${fmt.two(distanceKm)} km`
+                : undefined
             }
           />
           <Field
@@ -97,9 +92,8 @@ export function WalkCalculator({
             onChange={set("durationMin")}
             unit="min"
             inputMode="numeric"
-            placeholder="50"
+            placeholder="0"
             error={errors.durationMin}
-            hint="Must be greater than 0"
           />
           <div>
             <Field
@@ -111,22 +105,11 @@ export function WalkCalculator({
               placeholder="auto"
               error={errors.speedMph}
               hint={
-                speedIsManual
-                  ? "Manual entry — used for MET"
-                  : autoSpeedMph !== null && Number.isFinite(autoSpeedMph)
-                    ? `Auto: ${fmt.two(autoSpeedMph)} mph = ${fmt.two(autoSpeedMph * 1.60934)} km/h`
-                    : "Leave blank to derive from distance ÷ duration"
+                !speedIsManual && autoSpeedMph !== null && Number.isFinite(autoSpeedMph)
+                  ? `${fmt.two(autoSpeedMph)} mph · ${fmt.two(autoSpeedMph * 1.60934)} km/h`
+                  : undefined
               }
             />
-            {speedIsManual && !errors.speedMph && (
-              <button
-                type="button"
-                onClick={() => set("speedMph")("")}
-                className="mt-1.5 inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:underline"
-              >
-                <Wand2 size={12} strokeWidth={2.4} /> switch back to automatic
-              </button>
-            )}
           </div>
         </div>
 
@@ -135,15 +118,11 @@ export function WalkCalculator({
             <Calculator size={16} strokeWidth={2.4} />
             Calculate net calories
           </Button>
-          <Button variant="ghost" onClick={handleReset} className="w-full sm:w-auto">
-            <RotateCcw size={15} strokeWidth={2.2} />
-            Load example walk
-          </Button>
         </div>
 
         {attempted && Object.values(errors).some(Boolean) && (
           <p role="alert" className="anim-fade font-mono text-[11.5px] text-coral">
-            Fix the highlighted fields — negative distance, duration and invalid values are blocked.
+            Fix the highlighted fields.
           </p>
         )}
       </div>
