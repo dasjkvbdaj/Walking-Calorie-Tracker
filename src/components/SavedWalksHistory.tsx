@@ -5,7 +5,7 @@ import type { CalcInputs, CalcNumbers, Workout } from "../lib/types";
 import { Button, Field, fmt, Panel, SectionHead } from "./ui";
 import { cn } from "../utils/cn";
 
-type FilterMode = "all" | "today" | "yesterday" | "date";
+type FilterMode = "all" | "today" | "date" | "week" | "month" | "range";
 
 function formatWhen(ts: number): string {
   const d = new Date(ts);
@@ -18,20 +18,67 @@ function formatWhen(ts: number): string {
   });
 }
 
-function toLocalDateInput(ts: number): string {
-  const d = new Date(ts);
+function toLocalDateStr(d: Date): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-function isSameLocalDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+function toLocalDateInput(ts: number): string {
+  return toLocalDateStr(new Date(ts));
+}
+
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function isValidDateStr(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  return toLocalDateStr(parseLocalDate(s)) === s;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return toLocalDateStr(d);
+}
+
+function shiftMonth(dateStr: string, months: number): string {
+  const d = parseLocalDate(dateStr);
+  return toLocalDateStr(new Date(d.getFullYear(), d.getMonth() + months, 1));
+}
+
+function weekRange(dateStr: string): { from: string; to: string } {
+  const d = parseLocalDate(dateStr);
+  const offset = (d.getDay() + 6) % 7;
+  const start = addDays(dateStr, -offset);
+  return { from: start, to: addDays(start, 6) };
+}
+
+function monthRange(dateStr: string): { from: string; to: string } {
+  const d = parseLocalDate(dateStr);
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { from: toLocalDateStr(first), to: toLocalDateStr(last) };
+}
+
+function formatShortDate(dateStr: string): string {
+  return parseLocalDate(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatLongDate(dateStr: string): string {
+  return parseLocalDate(dateStr).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 function workoutToInputs(w: Workout): CalcInputs {
@@ -52,6 +99,8 @@ export function SavedWalksHistory({
   onDelete: (id: string) => void;
   onUpdate: (id: string, values: CalcNumbers) => void;
 }) {
+  const today = toLocalDateStr(new Date());
+
   const [pendingDelete, setPendingDelete] = useState<Workout | null>(null);
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null);
   const [editInputs, setEditInputs] = useState<CalcInputs>({
@@ -69,24 +118,48 @@ export function SavedWalksHistory({
   const [editErrors, setEditErrors] = useState<CalcFieldErrors>({});
 
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
-  const [selectedDate, setSelectedDate] = useState<string>(() => toLocalDateInput(Date.now()));
+  const [filterDate, setFilterDate] = useState<string>(today);
+  const [rangeFrom, setRangeFrom] = useState<string>(addDays(today, -30));
+  const [rangeTo, setRangeTo] = useState<string>(today);
+
+  function handleSelectFilter(nextMode: FilterMode) {
+    setFilterMode(nextMode);
+    const nowToday = toLocalDateStr(new Date());
+    if (nextMode === "date" || nextMode === "week" || nextMode === "month") {
+      setFilterDate(nowToday);
+    } else if (nextMode === "range") {
+      setRangeTo(nowToday);
+      setRangeFrom(addDays(nowToday, -30));
+    }
+  }
+
+  const bounds = useMemo<{ from: string; to: string } | null>(() => {
+    const nowToday = toLocalDateStr(new Date());
+    switch (filterMode) {
+      case "today":
+        return { from: nowToday, to: nowToday };
+      case "date":
+        return { from: filterDate, to: filterDate };
+      case "week":
+        return weekRange(filterDate);
+      case "month":
+        return monthRange(filterDate);
+      case "range":
+        return rangeFrom <= rangeTo
+          ? { from: rangeFrom, to: rangeTo }
+          : { from: rangeTo, to: rangeFrom };
+      default:
+        return null;
+    }
+  }, [filterMode, filterDate, rangeFrom, rangeTo]);
 
   const filteredWorkouts = useMemo(() => {
-    const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-
+    if (!bounds) return workouts;
     return workouts.filter((w) => {
-      const savedDate = new Date(w.savedAt);
-      if (filterMode === "today") return isSameLocalDay(savedDate, now);
-      if (filterMode === "yesterday") return isSameLocalDay(savedDate, yesterday);
-      if (filterMode === "date") {
-        if (!selectedDate) return true;
-        return toLocalDateInput(w.savedAt) === selectedDate;
-      }
-      return true;
+      const d = toLocalDateInput(w.savedAt);
+      return d >= bounds.from && d <= bounds.to;
     });
-  }, [workouts, filterMode, selectedDate]);
+  }, [workouts, bounds]);
 
   function openEditModal(workout: Workout) {
     const initial = workoutToInputs(workout);
@@ -146,15 +219,17 @@ export function SavedWalksHistory({
           className="border-b border-line"
         />
 
-        {/* Date filter bar */}
-        <div className="border-b border-line bg-panel2/60 px-5 py-3.5 md:px-6">
+        {/* Filter controls */}
+        <div className="border-b border-line bg-panel2/60 px-5 py-3.5 md:px-6 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {(
               [
-                { id: "all", label: "All" },
+                { id: "all", label: "All records" },
                 { id: "today", label: "Today" },
-                { id: "yesterday", label: "Yesterday" },
                 { id: "date", label: "Specific date" },
+                { id: "week", label: "Selected week" },
+                { id: "month", label: "Selected month" },
+                { id: "range", label: "Custom range" },
               ] as const
             ).map((item) => {
               const active = filterMode === item.id;
@@ -162,7 +237,7 @@ export function SavedWalksHistory({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setFilterMode(item.id)}
+                  onClick={() => handleSelectFilter(item.id)}
                   className={cn(
                     "rounded-lg border px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors",
                     active
@@ -174,17 +249,139 @@ export function SavedWalksHistory({
                 </button>
               );
             })}
+          </div>
 
-            {filterMode === "date" && (
+          {filterMode === "today" && (
+            <div className="anim-fade font-mono text-[11.5px] text-muted">
+              {formatLongDate(toLocalDateStr(new Date()))}
+            </div>
+          )}
+
+          {filterMode === "date" && (
+            <div className="anim-fade flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                aria-label="Previous day"
+                onClick={() => setFilterDate((d) => addDays(d, -1))}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-ink transition-colors hover:border-signal/60 hover:text-signal"
+              >
+                ◀
+              </button>
               <input
                 type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                aria-label="Filter by specific date"
+                value={filterDate}
+                aria-label="Date"
+                onChange={(e) => {
+                  if (isValidDateStr(e.target.value)) setFilterDate(e.target.value);
+                }}
                 className="rounded-lg border border-line bg-panel px-3 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-signal/70"
               />
-            )}
-          </div>
+              <button
+                type="button"
+                aria-label="Next day"
+                onClick={() => setFilterDate((d) => addDays(d, 1))}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-ink transition-colors hover:border-signal/60 hover:text-signal"
+              >
+                ▶
+              </button>
+            </div>
+          )}
+
+          {filterMode === "week" && (
+            <div className="anim-fade space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Previous week"
+                  onClick={() => setFilterDate((d) => addDays(d, -7))}
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-ink transition-colors hover:border-signal/60 hover:text-signal"
+                >
+                  ◀
+                </button>
+                <input
+                  type="date"
+                  value={filterDate}
+                  aria-label="Any day in the week"
+                  onChange={(e) => {
+                    if (isValidDateStr(e.target.value)) setFilterDate(e.target.value);
+                  }}
+                  className="rounded-lg border border-line bg-panel px-3 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-signal/70"
+                />
+                <button
+                  type="button"
+                  aria-label="Next week"
+                  onClick={() => setFilterDate((d) => addDays(d, 7))}
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-ink transition-colors hover:border-signal/60 hover:text-signal"
+                >
+                  ▶
+                </button>
+              </div>
+              <p className="font-mono text-[11px] text-muted">
+                Week: {formatShortDate(weekRange(filterDate).from)} – {formatShortDate(weekRange(filterDate).to)} (Mon–Sun)
+              </p>
+            </div>
+          )}
+
+          {filterMode === "month" && (
+            <div className="anim-fade space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Previous month"
+                  onClick={() => setFilterDate((d) => shiftMonth(d, -1))}
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-ink transition-colors hover:border-signal/60 hover:text-signal"
+                >
+                  ◀
+                </button>
+                <input
+                  type="date"
+                  value={filterDate}
+                  aria-label="Any day in the month"
+                  onChange={(e) => {
+                    if (isValidDateStr(e.target.value)) setFilterDate(e.target.value);
+                  }}
+                  className="rounded-lg border border-line bg-panel px-3 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-signal/70"
+                />
+                <button
+                  type="button"
+                  aria-label="Next month"
+                  onClick={() => setFilterDate((d) => shiftMonth(d, 1))}
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-ink transition-colors hover:border-signal/60 hover:text-signal"
+                >
+                  ▶
+                </button>
+              </div>
+              <p className="font-mono text-[11.5px] font-semibold text-ink">
+                {parseLocalDate(filterDate).toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+          )}
+
+          {filterMode === "range" && (
+            <div className="anim-fade flex flex-wrap items-center gap-2">
+              <input
+                type="date"
+                value={rangeFrom}
+                aria-label="From date"
+                onChange={(e) => {
+                  if (isValidDateStr(e.target.value)) setRangeFrom(e.target.value);
+                }}
+                className="rounded-lg border border-line bg-panel px-3 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-signal/70"
+              />
+              <input
+                type="date"
+                value={rangeTo}
+                aria-label="To date"
+                onChange={(e) => {
+                  if (isValidDateStr(e.target.value)) setRangeTo(e.target.value);
+                }}
+                className="rounded-lg border border-line bg-panel px-3 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-signal/70"
+              />
+            </div>
+          )}
         </div>
 
         {filteredWorkouts.length === 0 ? (
