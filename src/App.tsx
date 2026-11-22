@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, Info, TriangleAlert } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Info, TriangleAlert } from "lucide-react";
 import { Navigation, type Page } from "./components/Navigation";
 import { ProfileSettings } from "./components/ProfileSettings";
 import { ProfileSummary } from "./components/ProfileSummary";
@@ -19,6 +19,7 @@ import {
   type ThemeMode,
 } from "./lib/storage";
 import type { CalcInputs, CalcNumbers, CalculationResult, Profile, Workout } from "./lib/types";
+import { cn } from "./utils/cn";
 
 type Toast = { id: number; message: string; kind: "success" | "error" | "info" };
 
@@ -96,14 +97,12 @@ export default function App() {
     if (!latestResult) return;
     if (history.some((w) => w.signature === latestResult.signature)) {
       notify("Already saved", "info");
-      setLatestResult(null);
       return;
     }
     const workout: Workout = { ...latestResult, id: makeId(), savedAt: Date.now() };
     setHistory((prev) =>
       [workout, ...prev].sort((a, b) => b.savedAt - a.savedAt),
     );
-    setLatestResult(null);
     notify(`${fmt.whole(workout.netActiveCalories)} kcal`);
   }
 
@@ -245,12 +244,35 @@ function CalculatorView({
   alreadySaved: boolean;
   onSaveWorkout: () => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(true);
+
   const strip = [
     { label: "Age", value: String(age), unit: "yrs" },
     { label: "Gender", value: "Male" },
     { label: "Weight", value: fmt.one(profile.weightKg), unit: "kg" },
     { label: "Height", value: fmt.one(profile.heightCm), unit: "cm" },
   ];
+
+  const metrics = latestResult
+    ? [
+        { label: "Steps", value: fmt.whole(latestResult.steps), unit: "steps" },
+        { label: "Distance", value: fmt.two(latestResult.distanceMi), unit: "mi" },
+        { label: "Distance", value: fmt.two(latestResult.distanceKm), unit: "km" },
+        { label: "Duration", value: fmt.one(latestResult.durationMin), unit: "min" },
+        { label: "Avg Speed", value: fmt.two(latestResult.speedMph), unit: "mph" },
+        { label: "Speed", value: fmt.two(latestResult.speedKmh), unit: "km/h" },
+        {
+          label: "Step Cadence",
+          value: latestResult.steps > 0 ? fmt.one(latestResult.cadence) : "—",
+          unit: latestResult.steps > 0 ? "steps/min" : undefined,
+        },
+        {
+          label: "Stride Length",
+          value: latestResult.strideLengthCm !== null ? fmt.one(latestResult.strideLengthCm) : "—",
+          unit: latestResult.strideLengthCm !== null ? "cm" : undefined,
+        },
+      ]
+    : [];
 
   return (
     <>
@@ -294,18 +316,56 @@ function CalculatorView({
 
         {latestResult && (
           <div className="lg:col-span-7">
-            <section className="rounded-2xl border border-line bg-panel p-6 anim-rise">
-              <div className="label text-signal mb-2">Net active calories burned</div>
-              <div className="flex items-baseline gap-2.5">
-                <span className="tnum text-[48px] font-extrabold leading-none tracking-tighter">
-                  {fmt.whole(latestResult.netActiveCalories)}
-                </span>
-                <span className="font-mono text-[13px] text-signal">kcal</span>
+            <section className="overflow-hidden rounded-2xl border border-line bg-panel anim-rise">
+              <div className="p-6">
+                <div className="label text-signal mb-2">Net active calories burned</div>
+                <div className="flex items-baseline gap-2.5">
+                  <span className="tnum text-[48px] font-extrabold leading-none tracking-tighter">
+                    {fmt.whole(latestResult.netActiveCalories)}
+                  </span>
+                  <span className="font-mono text-[13px] text-signal">kcal</span>
+                </div>
+                <div className="mt-5">
+                  <Button onClick={onSaveWorkout} disabled={alreadySaved} className="w-full sm:w-auto">
+                    {alreadySaved ? "Already saved" : "Save walk"}
+                  </Button>
+                </div>
               </div>
-              <div className="mt-5">
-                <Button onClick={onSaveWorkout} disabled={alreadySaved}>
-                  {alreadySaved ? "Already saved" : "Save walk"}
-                </Button>
+
+              <div className="border-t border-line grid grid-cols-2 gap-px bg-line">
+                {metrics.map((m, idx) => (
+                  <div key={`${m.label}-${idx}`} className="bg-panel px-5 py-4">
+                    <div className="label truncate">{m.label}</div>
+                    <div className="mt-1 flex items-baseline gap-1.5">
+                      <span className="tnum text-[20px] font-bold tracking-tight">{m.value}</span>
+                      {m.unit && <span className="font-mono text-[11px] text-muted">{m.unit}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-line px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen((o) => !o)}
+                  aria-expanded={detailsOpen}
+                  className="flex w-full items-center justify-between text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-muted hover:text-ink"
+                >
+                  <span>Calculation Details</span>
+                  <ChevronDown
+                    size={16}
+                    className={cn("transition-transform duration-200", detailsOpen && "rotate-180")}
+                  />
+                </button>
+
+                {detailsOpen && (
+                  <div className="anim-fade mt-3 rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
+                    <span className="font-mono text-[12px] text-muted">Estimated MET</span>
+                    <span className="tnum font-mono text-[13px] font-bold text-ink">
+                      {latestResult.met.met.toFixed(2)} MET
+                    </span>
+                  </div>
+                )}
               </div>
             </section>
           </div>
