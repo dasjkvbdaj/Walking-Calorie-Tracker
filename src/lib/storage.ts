@@ -1,5 +1,5 @@
-import { DATE_OF_BIRTH, FIXED_GENDER } from "./calc";
-import type { CalcInputs, Profile, Workout } from "./types";
+import { DATE_OF_BIRTH, FIXED_GENDER, runCalculation } from "./calc";
+import type { CalcInputs, CalcNumbers, Profile, Workout } from "./types";
 
 export type ThemeMode = "dark" | "light";
 
@@ -40,7 +40,7 @@ function writeRaw(key: string, value: unknown): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    /* storage unavailable (private mode / quota) — fail silently, app still works */
+    /* storage unavailable (private mode / quota) - fail silently, app still works */
   }
 }
 
@@ -72,12 +72,14 @@ export function loadProfile(): Profile {
 
   const weightKg = isFiniteNumber(s.weightKg) ? clamp(s.weightKg, 30, 300) : DEFAULT_PROFILE.weightKg;
   const heightCm = isFiniteNumber(s.heightCm) ? clamp(s.heightCm, 80, 260) : DEFAULT_PROFILE.heightCm;
+  const gender = s.gender === "female" || s.gender === "male" ? s.gender : FIXED_GENDER;
+  const dateOfBirth = typeof s.dateOfBirth === "string" && s.dateOfBirth ? s.dateOfBirth : DATE_OF_BIRTH;
 
   return {
     weightKg: round1dp(weightKg),
     heightCm: round1dp(heightCm),
-    dateOfBirth: DATE_OF_BIRTH,
-    gender: FIXED_GENDER,
+    dateOfBirth,
+    gender,
   };
 }
 
@@ -98,17 +100,56 @@ function isWorkout(v: unknown): v is Workout {
   return (
     typeof w.id === "string" &&
     isFiniteNumber(w.savedAt) &&
-    isFiniteNumber(w.netActiveCalories) &&
     isFiniteNumber(w.distanceMi) &&
     isFiniteNumber(w.durationMin)
   );
 }
 
-export function loadHistory(): Workout[] {
+/** Recalculates a saved workout using the current ACSM + Mifflin-St Jeor BMR equation. */
+export function recalculateWorkout(workout: Workout, fallbackProfile?: Profile): Workout {
+  const profile: Profile = {
+    weightKg: isFiniteNumber(workout.profile?.weightKg)
+      ? workout.profile.weightKg
+      : (fallbackProfile?.weightKg ?? DEFAULT_PROFILE.weightKg),
+    heightCm: isFiniteNumber(workout.profile?.heightCm)
+      ? workout.profile.heightCm
+      : (fallbackProfile?.heightCm ?? DEFAULT_PROFILE.heightCm),
+    dateOfBirth: fallbackProfile?.dateOfBirth ?? DATE_OF_BIRTH,
+    gender:
+      workout.profile?.gender === "female" || workout.profile?.gender === "male"
+        ? workout.profile.gender
+        : (fallbackProfile?.gender ?? FIXED_GENDER),
+  };
+
+  const manualSpeed =
+    workout.speedSource === "manual" && isFiniteNumber(workout.speedMph) && workout.speedMph > 0
+      ? workout.speedMph
+      : null;
+
+  const numbers: CalcNumbers = {
+    steps: isFiniteNumber(workout.steps) ? workout.steps : 0,
+    distanceMi: workout.distanceMi,
+    durationMin: workout.durationMin,
+    speedMph: manualSpeed,
+  };
+
+  const updated = runCalculation(numbers, profile);
+
+  return {
+    ...workout,
+    ...updated,
+    id: workout.id,
+    savedAt: workout.savedAt,
+  };
+}
+
+export function loadHistory(profile?: Profile): Workout[] {
   const stored = readRaw(STORAGE_KEYS.history);
   if (!Array.isArray(stored)) return [];
-  const valid = stored.filter(isWorkout);
-  return valid.sort((a, b) => b.savedAt - a.savedAt);
+  const valid = stored.filter(isWorkout).map((w) => recalculateWorkout(w, profile));
+  const sorted = valid.sort((a, b) => b.savedAt - a.savedAt);
+  saveHistory(sorted);
+  return sorted;
 }
 
 export function saveHistory(history: Workout[]): void {
