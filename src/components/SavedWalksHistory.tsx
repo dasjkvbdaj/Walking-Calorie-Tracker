@@ -303,7 +303,7 @@ export function SavedWalksHistory({
                 </button>
               </div>
               <p className="font-mono text-[11px] text-muted">
-                Week: {formatShortDate(weekRange(filterDate).from)} – {formatShortDate(weekRange(filterDate).to)} (Mon–Sun)
+                Week: {formatShortDate(weekRange(filterDate).from)} - {formatShortDate(weekRange(filterDate).to)} (Mon-Sun)
               </p>
             </div>
           )}
@@ -491,7 +491,7 @@ export function SavedWalksHistory({
               Delete this saved walk?
             </h3>
             <p className="mt-2 font-mono text-[12px] text-muted">
-              {fmt.whole(pendingDelete.netActiveCalories)} kcal net active · {fmt.two(pendingDelete.distanceMi)} mi
+              {fmt.whole(pendingDelete.netActiveCalories)} kcal active · {fmt.whole(pendingDelete.totalCalories)} kcal total · {fmt.two(pendingDelete.distanceMi)} mi
             </p>
 
             <div className="mt-6 flex items-center justify-end gap-2.5">
@@ -529,25 +529,27 @@ function WalkHistoryCard({
   const [open, setOpen] = useState(false);
 
   const summary = [
+    { label: "Total calories", value: `${fmt.whole(workout.totalCalories)} kcal` },
     { label: "Steps", value: fmt.whole(workout.steps) },
     { label: "Distance", value: `${fmt.two(workout.distanceMi)} mi` },
     { label: "Duration", value: `${fmt.one(workout.durationMin)} min` },
-    { label: "Avg pace", value: `${fmt.two(workout.speedMph)} mph` },
   ];
 
   const detail = [
+    ["Active calories", `${fmt.whole(workout.netActiveCalories)} kcal`],
+    ["Total calories", `${fmt.whole(workout.totalCalories)} kcal`],
+    ["Resting subtracted", `${fmt.one(workout.restingCalories)} kcal`],
+    ["Avg pace", `${fmt.two(workout.speedMph)} mph`],
     ["Distance", `${fmt.two(workout.distanceKm)} km`],
     ["Speed", `${fmt.two(workout.speedKmh)} km/h`],
-    ["Cadence", workout.steps > 0 ? `${fmt.one(workout.cadence)} steps/min` : "—"],
-    ["Stride", workout.strideLengthCm !== null ? `${fmt.one(workout.strideLengthCm)} cm` : "—"],
-    ["Estimated MET", workout.met.met.toFixed(2)],
-    ["Gross calories", `${fmt.one(workout.grossCalories)} kcal`],
-    ["Resting subtracted", `${fmt.one(workout.restingCalories)} kcal`],
+    ["Speed (m/min)", `${workout.metersPerMin.toFixed(2)} m/min`],
+    ["ACSM VO2", `${workout.vo2.toFixed(2)} mL/kg/min`],
+    ["Cadence", workout.steps > 0 ? `${fmt.one(workout.cadence)} steps/min` : "-"],
+    ["Stride", workout.strideLengthCm !== null ? `${fmt.one(workout.strideLengthCm)} cm` : "-"],
     ["BMR used", `${fmt.whole(workout.bmrDaily)} kcal/day`],
     ["Weight", `${fmt.one(workout.profile.weightKg)} kg`],
     ["Height", `${fmt.one(workout.profile.heightCm)} cm`],
     ["Age", `${workout.profile.age} yrs`],
-    ["Net active", `${fmt.whole(workout.netActiveCalories)} kcal`],
   ];
 
   return (
@@ -561,11 +563,19 @@ function WalkHistoryCard({
             </span>
           </div>
 
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="tnum text-[30px] leading-none font-extrabold tracking-tighter">
-              {fmt.whole(workout.netActiveCalories)}
-            </span>
-            <span className="font-mono text-[11.5px] text-signal">kcal net active</span>
+          <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <div className="flex items-baseline gap-1.5">
+              <span className="tnum text-[30px] leading-none font-extrabold tracking-tighter">
+                {fmt.whole(workout.netActiveCalories)}
+              </span>
+              <span className="font-mono text-[11.5px] text-signal">kcal active</span>
+            </div>
+            <div className="flex items-baseline gap-1.5 font-mono text-[12px] text-muted">
+              <span>Total:</span>
+              <span className="tnum font-semibold text-ink">
+                {fmt.whole(workout.totalCalories)} kcal
+              </span>
+            </div>
           </div>
 
           <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2">
@@ -620,7 +630,7 @@ function WalkHistoryCard({
                 <dd
                   className={cn(
                     "mt-1 text-[14px] font-semibold tnum truncate",
-                    k === "Net active" && "text-signal",
+                    k === "Active calories" && "text-signal",
                   )}
                 >
                   {v}
