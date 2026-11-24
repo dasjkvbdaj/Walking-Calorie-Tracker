@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, ChevronDown, Info, TriangleAlert } from "lucide-react";
 import { Navigation, type Page } from "./components/Navigation";
 import { ProfileSettings } from "./components/ProfileSettings";
@@ -12,6 +12,7 @@ import {
   loadHistory,
   loadProfile,
   loadTheme,
+  recalculateWorkout,
   saveCalcInputs,
   saveHistory,
   saveProfile,
@@ -75,14 +76,38 @@ export default function App() {
   function handleSaveProfile(next: Profile) {
     setProfile(next);
     saveProfile(next);
+    setHistory((prev) => {
+      const updated = prev.map((w) => recalculateWorkout(w, next));
+      saveHistory(updated);
+      return updated;
+    });
     notify(`${fmt.one(next.weightKg)} kg · ${fmt.one(next.heightCm)} cm`);
   }
+
+  const handleAutoCalculate = useCallback(
+    (values: CalcNumbers | null) => {
+      if (!values) {
+        setLatestResult(null);
+        return;
+      }
+      try {
+        const calc = runCalculation(values, profile);
+        setLatestResult(calc);
+      } catch {
+        setLatestResult(null);
+      }
+    },
+    [profile],
+  );
 
   function handleCalculate(values: CalcNumbers) {
     try {
       const calc = runCalculation(values, profile);
       setLatestResult(calc);
-      notify(`${fmt.whole(calc.netActiveCalories)} kcal`, "info");
+      notify(
+        `${fmt.whole(calc.netActiveCalories)} kcal active · ${fmt.whole(calc.totalCalories)} kcal total`,
+        "info",
+      );
     } catch {
       notify("Error", "error");
     }
@@ -103,7 +128,7 @@ export default function App() {
     setHistory((prev) =>
       [workout, ...prev].sort((a, b) => b.savedAt - a.savedAt),
     );
-    notify(`${fmt.whole(workout.netActiveCalories)} kcal`);
+    notify(`${fmt.whole(workout.netActiveCalories)} kcal active`);
   }
 
   function handleUpdateWorkout(id: string, values: CalcNumbers) {
@@ -154,6 +179,7 @@ export default function App() {
               inputs={inputs}
               onInputsChange={setInputs}
               onCalculate={handleCalculate}
+              onAutoCalculate={handleAutoCalculate}
               latestResult={latestResult}
               alreadySaved={alreadySaved}
               onSaveWorkout={handleSaveWorkout}
@@ -209,7 +235,7 @@ function ProfileView({
           <section className="rounded-2xl border border-line bg-panel px-5 py-5 md:px-6">
             <div className="-mx-1 grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
               <div className="bg-panel"><StatCell label="Age" value={String(age)} unit="yrs" /></div>
-              <div className="bg-panel"><StatCell label="Gender" value="Male" /></div>
+              <div className="bg-panel"><StatCell label="Gender" value={profile.gender === "female" ? "Female" : "Male"} /></div>
               <div className="bg-panel"><StatCell label="Weight" value={fmt.one(profile.weightKg)} unit="kg" /></div>
               <div className="bg-panel"><StatCell label="Height" value={fmt.one(profile.heightCm)} unit="cm" /></div>
             </div>
@@ -231,6 +257,7 @@ function CalculatorView({
   inputs,
   onInputsChange,
   onCalculate,
+  onAutoCalculate,
   latestResult,
   alreadySaved,
   onSaveWorkout,
@@ -240,6 +267,7 @@ function CalculatorView({
   inputs: CalcInputs;
   onInputsChange: (i: CalcInputs) => void;
   onCalculate: (v: CalcNumbers) => void;
+  onAutoCalculate: (v: CalcNumbers | null) => void;
   latestResult: CalculationResult | null;
   alreadySaved: boolean;
   onSaveWorkout: () => void;
@@ -248,13 +276,15 @@ function CalculatorView({
 
   const strip = [
     { label: "Age", value: String(age), unit: "yrs" },
-    { label: "Gender", value: "Male" },
+    { label: "Gender", value: profile.gender === "female" ? "Female" : "Male" },
     { label: "Weight", value: fmt.one(profile.weightKg), unit: "kg" },
     { label: "Height", value: fmt.one(profile.heightCm), unit: "cm" },
   ];
 
   const metrics = latestResult
     ? [
+        { label: "Active Calories", value: fmt.whole(latestResult.netActiveCalories), unit: "kcal" },
+        { label: "Total Calories", value: fmt.whole(latestResult.totalCalories), unit: "kcal" },
         { label: "Steps", value: fmt.whole(latestResult.steps), unit: "steps" },
         { label: "Distance", value: fmt.two(latestResult.distanceMi), unit: "mi" },
         { label: "Distance", value: fmt.two(latestResult.distanceKm), unit: "km" },
@@ -263,12 +293,12 @@ function CalculatorView({
         { label: "Speed", value: fmt.two(latestResult.speedKmh), unit: "km/h" },
         {
           label: "Step Cadence",
-          value: latestResult.steps > 0 ? fmt.one(latestResult.cadence) : "—",
+          value: latestResult.steps > 0 ? fmt.one(latestResult.cadence) : "-",
           unit: latestResult.steps > 0 ? "steps/min" : undefined,
         },
         {
           label: "Stride Length",
-          value: latestResult.strideLengthCm !== null ? fmt.one(latestResult.strideLengthCm) : "—",
+          value: latestResult.strideLengthCm !== null ? fmt.one(latestResult.strideLengthCm) : "-",
           unit: latestResult.strideLengthCm !== null ? "cm" : undefined,
         },
       ]
@@ -311,20 +341,33 @@ function CalculatorView({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="lg:col-span-5 lg:sticky lg:top-20 lg:self-start">
-          <WalkCalculator inputs={inputs} onChange={onInputsChange} onCalculate={onCalculate} />
+          <WalkCalculator
+            inputs={inputs}
+            onChange={onInputsChange}
+            onCalculate={onCalculate}
+            onAutoCalculate={onAutoCalculate}
+          />
         </div>
 
         {latestResult && (
           <div className="lg:col-span-7">
             <section className="overflow-hidden rounded-2xl border border-line bg-panel anim-rise">
               <div className="p-6">
-                <div className="label text-signal mb-2">Net active calories burned</div>
+                <div className="label text-signal mb-2">Active calories burned</div>
                 <div className="flex items-baseline gap-2.5">
                   <span className="tnum text-[48px] font-extrabold leading-none tracking-tighter">
                     {fmt.whole(latestResult.netActiveCalories)}
                   </span>
-                  <span className="font-mono text-[13px] text-signal">kcal</span>
+                  <span className="font-mono text-[13px] text-signal">kcal active</span>
                 </div>
+
+                <div className="mt-3 flex items-baseline gap-2 font-mono text-[12.5px] text-muted">
+                  <span>Total calories:</span>
+                  <span className="tnum text-[16px] font-bold text-ink">
+                    {fmt.whole(latestResult.totalCalories)} kcal
+                  </span>
+                </div>
+
                 <div className="mt-5">
                   <Button onClick={onSaveWorkout} disabled={alreadySaved} className="w-full sm:w-auto">
                     {alreadySaved ? "Already saved" : "Save walk"}
@@ -359,11 +402,37 @@ function CalculatorView({
                 </button>
 
                 {detailsOpen && (
-                  <div className="anim-fade mt-3 rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
-                    <span className="font-mono text-[12px] text-muted">Estimated MET</span>
-                    <span className="tnum font-mono text-[13px] font-bold text-ink">
-                      {latestResult.met.met.toFixed(2)} MET
-                    </span>
+                  <div className="anim-fade mt-3 space-y-2">
+                    <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
+                      <span className="font-mono text-[12px] text-muted">Speed (m/min)</span>
+                      <span className="tnum font-mono text-[13px] font-bold text-ink">
+                        {latestResult.metersPerMin.toFixed(2)} m/min
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
+                      <span className="font-mono text-[12px] text-muted">ACSM VO2</span>
+                      <span className="tnum font-mono text-[13px] font-bold text-ink">
+                        {latestResult.vo2.toFixed(2)} mL/kg/min
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
+                      <span className="font-mono text-[12px] text-muted">Total calories (ACSM)</span>
+                      <span className="tnum font-mono text-[13px] font-bold text-ink">
+                        {fmt.one(latestResult.totalCalories)} kcal
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
+                      <span className="font-mono text-[12px] text-muted">Resting subtracted (BMR)</span>
+                      <span className="tnum font-mono text-[13px] font-bold text-ink">
+                        - {fmt.one(latestResult.restingCalories)} kcal
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
+                      <span className="font-mono text-[12px] text-muted">Active calories (Net)</span>
+                      <span className="tnum font-mono text-[13px] font-bold text-signal">
+                        {fmt.whole(latestResult.netActiveCalories)} kcal
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
