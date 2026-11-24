@@ -2,6 +2,7 @@ import type {
   CalcInputs,
   CalcNumbers,
   CalculationResult,
+  Gender,
   IntensityTier,
   MetEstimate,
   Profile,
@@ -9,6 +10,7 @@ import type {
 
 export const MILES_TO_KM = 1.60934;
 export const MILES_TO_METERS = 1609.34;
+export const MPH_TO_METERS_PER_MIN = 26.8224;
 export const DATE_OF_BIRTH = "2004-12-08";
 export const FIXED_GENDER = "male" as const;
 
@@ -37,6 +39,10 @@ export function milesToKm(miles: number): number {
   return miles * MILES_TO_KM;
 }
 
+export function milesToMeters(miles: number): number {
+  return miles * MILES_TO_METERS;
+}
+
 /** speed_mph = distance_mi / (duration_min / 60); null when duration is invalid. */
 export function calculateSpeedMph(distanceMi: number, durationMin: number): number | null {
   if (!isFinite(durationMin) || durationMin <= 0 || !isFinite(distanceMi) || distanceMi < 0) {
@@ -49,6 +55,22 @@ export function mphToKmh(speedMph: number): number {
   return speedMph * MILES_TO_KM;
 }
 
+/** Converts speed to meters per minute; falls back to distance_meters / duration_min when speed is missing. */
+export function calculateMetersPerMin(
+  speedMph: number | null,
+  distanceMi: number,
+  durationMin: number,
+): number {
+  if (!isFinite(durationMin) || durationMin <= 0) return 0;
+  if (speedMph !== null && isFinite(speedMph) && speedMph > 0) {
+    return speedMph * MPH_TO_METERS_PER_MIN;
+  }
+  if (isFinite(distanceMi) && distanceMi > 0) {
+    return milesToMeters(distanceMi) / durationMin;
+  }
+  return 0;
+}
+
 /* -------------------------------------------------------------- cadence -- */
 
 /** cadence = steps / duration_min (steps/min) */
@@ -59,7 +81,13 @@ export function calculateCadence(steps: number, durationMin: number): number {
 
 /* ------------------------------------------------------- MET estimation -- */
 
-/** * Speed (km/h) -> MET, interpolated strictly inside the intensity table: * slow < 4.0 km/h -> 2.8 * moderate 4.0 – 4.8 km/h -> 3.3 – 3.5 * brisk 4.8 – 5.6 km/h -> 3.8 – 4.3 * fast > 5.6 km/h -> 5.0 and up (+0.42 MET per km/h, capped at 9) */
+/**
+ * Speed (km/h) -> MET, interpolated strictly inside the intensity table:
+ * slow < 4.0 km/h -> 2.8
+ * moderate 4.0 - 4.8 km/h -> 3.3 - 3.5
+ * brisk 4.8 - 5.6 km/h -> 3.8 - 4.3
+ * fast > 5.6 km/h -> 5.0 and up (+0.42 MET per km/h, capped at 9)
+ */
 function speedToMet(speedKmh: number): number {
   if (speedKmh < 4.0) return 2.8;
   if (speedKmh < 4.8) return 3.3 + ((speedKmh - 4.0) / 0.8) * 0.2;
@@ -106,14 +134,25 @@ export function cadenceTier(cadence: number): IntensityTier {
   return "fast";
 }
 
-/** * MET from walking speed, softened by cadence. * Speed sets the base via interpolation across the intensity ranges; cadence can * pull the estimate by at most -0.5 / +0.6 MET when steps/min disagrees with pace. */
+/**
+ * MET from walking speed, softened by cadence.
+ * Speed sets the base via interpolation across the intensity ranges; cadence can
+ * pull the estimate by at most -0.5 / +0.6 MET when steps/min disagrees with pace.
+ */
 export function estimateWalkingMET(speedKmh: number, cadence: number | null): MetEstimate {
   const clampedSpeed = Math.max(0, speedKmh);
   const speedMet = speedToMet(clampedSpeed);
   const tier = speedTier(clampedSpeed);
 
   if (cadence === null || cadence <= 0 || !isFinite(cadence)) {
-    return { met: round2(speedMet), speedMet: round2(speedMet), cadenceMet: null, tier, cadenceTier: null, cadenceAdjusted: false };
+    return {
+      met: round2(speedMet),
+      speedMet: round2(speedMet),
+      cadenceMet: null,
+      tier,
+      cadenceTier: null,
+      cadenceAdjusted: false,
+    };
   }
 
   const cadenceMet = interpolate(CADENCE_MET_ANCHORS, cadence);
@@ -133,14 +172,29 @@ export function estimateWalkingMET(speedKmh: number, cadence: number | null): Me
 
 /* ------------------------------------------------------------ calories -- */
 
-/** Gross walking calories — intermediate only. */
-export function calculateGrossCalories(met: number, weightKg: number, durationMin: number): number {
-  return ((met * 3.5 * weightKg) / 200) * durationMin;
+/** ACSM Walking Equation: VO2 (mL/kg/min) = (0.1 * m_per_min) + 3.5 */
+export function calculateWalkingVO2(metersPerMin: number): number {
+  return 0.1 * Math.max(0, metersPerMin) + 3.5;
 }
 
-/** Mifflin-St Jeor, male. */
-export function calculateBMR(weightKg: number, heightCm: number, age: number): number {
-  return 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
+/** ACSM Walking Total Calories: ((VO2 * weight_kg) / 200) * duration_min */
+export function calculateTotalWalkingCalories(
+  vo2: number,
+  weightKg: number,
+  durationMin: number,
+): number {
+  return ((vo2 * weightKg) / 200) * durationMin;
+}
+
+/** Mifflin-St Jeor BMR equation for male or female. */
+export function calculateBMR(
+  weightKg: number,
+  heightCm: number,
+  age: number,
+  gender: Gender = FIXED_GENDER,
+): number {
+  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
+  return gender === "female" ? base - 161 : base + 5;
 }
 
 /** Resting energy spent during the workout window. */
@@ -148,11 +202,12 @@ export function calculateRestingCalories(bmrDaily: number, durationMin: number):
   return (bmrDaily / 1440) * durationMin;
 }
 
-export function calculateNetActiveCalories(gross: number, resting: number): number {
-  return gross - resting;
+/** Net active calories = total_calories - resting_calories. */
+export function calculateNetActiveCalories(totalCalories: number, restingCalories: number): number {
+  return totalCalories - restingCalories;
 }
 
-/** Stride (cm) = (distance_m / steps) * 100 — null when steps are unknown. */
+/** Stride (cm) = (distance_m / steps) * 100 - null when steps are unknown. */
 export function calculateStrideLengthCm(distanceMi: number, steps: number): number | null {
   if (!isFinite(steps) || steps <= 0 || !isFinite(distanceMi) || distanceMi <= 0) return null;
   return ((distanceMi * MILES_TO_METERS) / steps) * 100;
@@ -162,7 +217,10 @@ export function calculateStrideLengthCm(distanceMi: number, steps: number): numb
 
 export type CalcFieldErrors = Partial<Record<keyof CalcInputs, string>>;
 
-/** * Validates raw calculator strings. Returns numbers when usable, otherwise a * per-field error map. Blank speed means "auto-derive". */
+/**
+ * Validates raw calculator strings. Returns numbers when usable, otherwise a
+ * per-field error map. Blank speed means "derive from distance & duration".
+ */
 export function parseCalcInputs(inputs: CalcInputs): {
   values: CalcNumbers | null;
   errors: CalcFieldErrors;
@@ -235,6 +293,7 @@ export function signatureOf(values: CalcNumbers, profile: Profile, age: number):
     profile.weightKg,
     profile.heightCm,
     age,
+    profile.gender,
   ].join("|");
 }
 
@@ -246,13 +305,16 @@ export function runCalculation(values: CalcNumbers, profile: Profile): Calculati
   const speedMph = values.speedMph !== null ? values.speedMph : (autoSpeed ?? 0);
 
   const speedKmh = mphToKmh(speedMph);
+  const metersPerMin = calculateMetersPerMin(values.speedMph, values.distanceMi, values.durationMin);
+  const vo2 = calculateWalkingVO2(metersPerMin);
+
   const cadence = calculateCadence(values.steps, values.durationMin);
   const met = estimateWalkingMET(speedKmh, values.steps > 0 ? cadence : null);
 
-  const grossCalories = calculateGrossCalories(met.met, profile.weightKg, values.durationMin);
-  const bmrDaily = calculateBMR(profile.weightKg, profile.heightCm, age);
+  const totalCalories = calculateTotalWalkingCalories(vo2, profile.weightKg, values.durationMin);
+  const bmrDaily = calculateBMR(profile.weightKg, profile.heightCm, age, profile.gender);
   const restingCalories = calculateRestingCalories(bmrDaily, values.durationMin);
-  const netActiveCalories = calculateNetActiveCalories(grossCalories, restingCalories);
+  const netActiveCalories = calculateNetActiveCalories(totalCalories, restingCalories);
 
   return {
     signature: signatureOf(values, profile, age),
@@ -267,9 +329,12 @@ export function runCalculation(values: CalcNumbers, profile: Profile): Calculati
     speedSource,
     cadence,
     strideLengthCm: calculateStrideLengthCm(values.distanceMi, values.steps),
+    metersPerMin,
+    vo2,
     met,
     bmrDaily,
-    grossCalories,
+    totalCalories,
+    grossCalories: totalCalories,
     restingCalories,
     netActiveCalories,
   };
