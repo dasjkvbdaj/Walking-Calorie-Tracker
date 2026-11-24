@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calculator } from "lucide-react";
 import {
   calculateSpeedMph,
@@ -13,10 +13,12 @@ export function WalkCalculator({
   inputs,
   onChange,
   onCalculate,
+  onAutoCalculate,
 }: {
   inputs: CalcInputs;
   onChange: (next: CalcInputs) => void;
   onCalculate: (values: CalcNumbers) => void;
+  onAutoCalculate?: (values: CalcNumbers | null) => void;
 }) {
   const [errors, setErrors] = useState<CalcFieldErrors>({});
   const [attempted, setAttempted] = useState(false);
@@ -33,10 +35,29 @@ export function WalkCalculator({
     return Number.isFinite(d) && d > 0 ? milesToKm(d) : null;
   }, [inputs.distanceMi]);
 
+  // Automatically recalculate whenever the user changes any input.
+  useEffect(() => {
+    const hasAnyInput =
+      inputs.steps.trim() !== "" ||
+      inputs.distanceMi.trim() !== "" ||
+      inputs.durationMin.trim() !== "" ||
+      inputs.speedMph.trim() !== "";
+
+    if (!hasAnyInput) {
+      onAutoCalculate?.(null);
+      return;
+    }
+
+    const { values } = parseCalcInputs(inputs);
+    if (values) {
+      onAutoCalculate?.(values);
+    }
+  }, [inputs, onAutoCalculate]);
+
   const set = (key: keyof CalcInputs) => (v: string) => {
-    onChange({ ...inputs, [key]: v });
+    const next = { ...inputs, [key]: v };
+    onChange(next);
     if (attempted) {
-      const next = { ...inputs, [key]: v };
       setErrors(parseCalcInputs(next).errors);
     } else if (errors[key]) {
       setErrors((e) => ({ ...e, [key]: undefined }));
@@ -49,8 +70,6 @@ export function WalkCalculator({
     setErrors(errs);
     if (!values) return;
     onCalculate(values);
-    onChange({ steps: "", distanceMi: "", durationMin: "", speedMph: "" });
-    setAttempted(false);
   }
 
   const speedIsManual = inputs.speedMph.trim() !== "";
