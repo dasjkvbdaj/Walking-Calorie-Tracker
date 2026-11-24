@@ -15,29 +15,28 @@ export function WalkResults({
   alreadySaved: boolean;
   stale: boolean;
 }) {
-  const animated = useCountUp(Math.round(result.netActiveCalories), 750);
-  const [open, setOpen] = useState(false);
+  const animatedActive = useCountUp(Math.round(result.netActiveCalories), 750);
+  const animatedTotal = useCountUp(Math.round(result.totalCalories), 750);
+  const [open, setOpen] = useState(true);
 
   const stats: Array<{ label: string; value: string; unit?: string; sub?: string }> = [
+    { label: "Active Calories", value: fmt.whole(result.netActiveCalories), unit: "kcal" },
+    { label: "Total Calories", value: fmt.whole(result.totalCalories), unit: "kcal" },
     { label: "Steps", value: fmt.whole(result.steps), unit: "steps" },
     { label: "Distance", value: fmt.two(result.distanceMi), unit: "mi" },
     { label: "Distance", value: fmt.two(result.distanceKm), unit: "km" },
     { label: "Duration", value: fmt.one(result.durationMin), unit: "min" },
-    {
-      label: "Avg speed",
-      value: fmt.two(result.speedMph),
-      unit: "mph",
-    },
+    { label: "Avg speed", value: fmt.two(result.speedMph), unit: "mph" },
     { label: "Speed", value: fmt.two(result.speedKmh), unit: "km/h" },
     {
       label: "Step cadence",
-      value: result.steps > 0 ? fmt.one(result.cadence) : "—",
-      unit: "steps/min",
+      value: result.steps > 0 ? fmt.one(result.cadence) : "-",
+      unit: result.steps > 0 ? "steps/min" : undefined,
     },
     {
       label: "Stride length",
-      value: result.strideLengthCm !== null ? fmt.one(result.strideLengthCm) : "—",
-      unit: "cm",
+      value: result.strideLengthCm !== null ? fmt.one(result.strideLengthCm) : "-",
+      unit: result.strideLengthCm !== null ? "cm" : undefined,
     },
   ];
 
@@ -55,7 +54,7 @@ export function WalkResults({
         />
         <div className="relative px-5 pt-6 pb-6 md:px-6">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="label text-signal">Net active calories burned</span>
+            <span className="label text-signal">Active Calories Burned</span>
             {stale && (
               <span className="rounded-full border border-line bg-panel2 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
                 updated
@@ -64,10 +63,17 @@ export function WalkResults({
           </div>
 
           <div className="mt-3 flex items-end gap-3">
-            <span className="tnum font-extrabold leading-[0.82] tracking-[-0.05em] text-[clamp(4.2rem,17vw,8.5rem)]">
-              {fmt.whole(animated)}
+            <span className="tnum font-extrabold leading-[0.82] tracking-[-0.05em] text-[clamp(3.6rem,14vw,6.8rem)]">
+              {fmt.whole(animatedActive)}
             </span>
-            <span className="pb-3 font-mono text-[15px] text-signal">kcal</span>
+            <span className="pb-2.5 font-mono text-[15px] text-signal">kcal active</span>
+          </div>
+
+          <div className="mt-3 flex items-baseline gap-2 font-mono text-[13px] text-muted">
+            <span>Total Calories:</span>
+            <span className="tnum text-[17px] font-bold text-ink">
+              {fmt.whole(animatedTotal)} kcal
+            </span>
           </div>
 
           <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -128,25 +134,31 @@ export function WalkResults({
 function Ledger({ result }: { result: CalculationResult }) {
   const rows = [
     {
-      label: "Estimated MET",
-      value: result.met.met.toFixed(2),
-      unit: "MET",
+      label: "Speed (m/min)",
+      value: result.metersPerMin.toFixed(2),
+      unit: "m/min",
       dim: true,
     },
     {
-      label: "Gross walking calories",
-      value: fmt.one(result.grossCalories),
+      label: "ACSM VO2",
+      value: result.vo2.toFixed(2),
+      unit: "mL/kg/min",
+      dim: true,
+    },
+    {
+      label: "Total calories (ACSM)",
+      value: fmt.one(result.totalCalories),
       unit: "kcal",
       dim: true,
     },
     {
-      label: "Resting calories subtracted",
-      value: `− ${fmt.one(result.restingCalories)}`,
+      label: "Resting calories subtracted (Mifflin-St Jeor)",
+      value: `- ${fmt.one(result.restingCalories)}`,
       unit: "kcal",
       dim: true,
     },
     {
-      label: "Net active calories",
+      label: "Active calories (Net)",
       value: fmt.whole(result.netActiveCalories),
       unit: "kcal",
       dim: false,
