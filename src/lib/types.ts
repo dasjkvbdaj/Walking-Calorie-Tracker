@@ -49,8 +49,11 @@ export interface CalculationResult {
   speedSource: "manual" | "auto";
   cadence: number;
   strideLengthCm: number | null;
+  metersPerMin: number;
+  vo2: number;
   met: MetEstimate;
   bmrDaily: number;
+  totalCalories: number;
   grossCalories: number;
   restingCalories: number;
   netActiveCalories: number;
