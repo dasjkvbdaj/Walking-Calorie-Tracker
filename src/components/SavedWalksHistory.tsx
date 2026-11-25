@@ -491,7 +491,7 @@ export function SavedWalksHistory({
               Delete this saved walk?
             </h3>
             <p className="mt-2 font-mono text-[12px] text-muted">
-              {fmt.whole(pendingDelete.netActiveCalories)} kcal active · {fmt.whole(pendingDelete.totalCalories)} kcal total · {fmt.two(pendingDelete.distanceMi)} mi
+              {fmt.calories(pendingDelete.netActiveCalories)} kcal active · {fmt.calories(pendingDelete.totalCalories)} kcal total · {fmt.two(pendingDelete.distanceMi)} mi
             </p>
 
             <div className="mt-6 flex items-center justify-end gap-2.5">
@@ -529,16 +529,16 @@ function WalkHistoryCard({
   const [open, setOpen] = useState(false);
 
   const summary = [
-    { label: "Total calories", value: `${fmt.whole(workout.totalCalories)} kcal` },
+    { label: "Total calories", value: `${fmt.calories(workout.totalCalories)} kcal` },
     { label: "Steps", value: fmt.whole(workout.steps) },
     { label: "Distance", value: `${fmt.two(workout.distanceMi)} mi` },
     { label: "Duration", value: `${fmt.one(workout.durationMin)} min` },
   ];
 
   const detail = [
-    ["Active calories", `${fmt.whole(workout.netActiveCalories)} kcal`],
-    ["Total calories", `${fmt.whole(workout.totalCalories)} kcal`],
-    ["Resting subtracted", `${fmt.one(workout.restingCalories)} kcal`],
+    ["Active calories", `${fmt.calories(workout.netActiveCalories)} kcal`],
+    ["Total calories", `${fmt.calories(workout.totalCalories)} kcal`],
+    ["Resting subtracted", `${fmt.calories(workout.restingCalories)} kcal`],
     ["Avg pace", `${fmt.two(workout.speedMph)} mph`],
     ["Distance", `${fmt.two(workout.distanceKm)} km`],
     ["Speed", `${fmt.two(workout.speedKmh)} km/h`],
@@ -546,7 +546,7 @@ function WalkHistoryCard({
     ["ACSM VO2", `${workout.vo2.toFixed(2)} mL/kg/min`],
     ["Cadence", workout.steps > 0 ? `${fmt.one(workout.cadence)} steps/min` : "-"],
     ["Stride", workout.strideLengthCm !== null ? `${fmt.one(workout.strideLengthCm)} cm` : "-"],
-    ["BMR used", `${fmt.whole(workout.bmrDaily)} kcal/day`],
+    ["BMR used", `${fmt.calories(workout.bmrDaily)} kcal/day`],
     ["Weight", `${fmt.one(workout.profile.weightKg)} kg`],
     ["Height", `${fmt.one(workout.profile.heightCm)} cm`],
     ["Age", `${workout.profile.age} yrs`],
@@ -566,14 +566,14 @@ function WalkHistoryCard({
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <div className="flex items-baseline gap-1.5">
               <span className="tnum text-[30px] leading-none font-extrabold tracking-tighter">
-                {fmt.whole(workout.netActiveCalories)}
+                {fmt.calories(workout.netActiveCalories)}
               </span>
               <span className="font-mono text-[11.5px] text-signal">kcal active</span>
             </div>
             <div className="flex items-baseline gap-1.5 font-mono text-[12px] text-muted">
               <span>Total:</span>
               <span className="tnum font-semibold text-ink">
-                {fmt.whole(workout.totalCalories)} kcal
+                {fmt.calories(workout.totalCalories)} kcal
               </span>
             </div>
           </div>
