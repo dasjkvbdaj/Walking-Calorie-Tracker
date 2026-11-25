@@ -12,7 +12,7 @@ export const STORAGE_KEYS = {
 
 export const DEFAULT_PROFILE: Profile = {
   weightKg: 113.2,
-  heightCm: 177,
+  heightCm: 177.5,
   dateOfBirth: DATE_OF_BIRTH,
   gender: FIXED_GENDER,
 };
@@ -105,20 +105,27 @@ function isWorkout(v: unknown): v is Workout {
   );
 }
 
-/** Recalculates a saved workout using the current ACSM + Mifflin-St Jeor BMR equation. */
+/** Recalculates a saved workout using the ACSM Walking Equation. */
 export function recalculateWorkout(workout: Workout, fallbackProfile?: Profile): Workout {
+  const activeProfile = fallbackProfile ?? DEFAULT_PROFILE;
   const profile: Profile = {
-    weightKg: isFiniteNumber(workout.profile?.weightKg)
-      ? workout.profile.weightKg
-      : (fallbackProfile?.weightKg ?? DEFAULT_PROFILE.weightKg),
-    heightCm: isFiniteNumber(workout.profile?.heightCm)
-      ? workout.profile.heightCm
-      : (fallbackProfile?.heightCm ?? DEFAULT_PROFILE.heightCm),
-    dateOfBirth: fallbackProfile?.dateOfBirth ?? DATE_OF_BIRTH,
+    weightKg: isFiniteNumber(activeProfile.weightKg)
+      ? activeProfile.weightKg
+      : isFiniteNumber(workout.profile?.weightKg)
+        ? workout.profile.weightKg
+        : DEFAULT_PROFILE.weightKg,
+    heightCm: isFiniteNumber(activeProfile.heightCm)
+      ? activeProfile.heightCm
+      : isFiniteNumber(workout.profile?.heightCm)
+        ? workout.profile.heightCm
+        : DEFAULT_PROFILE.heightCm,
+    dateOfBirth: activeProfile.dateOfBirth || DATE_OF_BIRTH,
     gender:
-      workout.profile?.gender === "female" || workout.profile?.gender === "male"
-        ? workout.profile.gender
-        : (fallbackProfile?.gender ?? FIXED_GENDER),
+      activeProfile.gender === "female" || activeProfile.gender === "male"
+        ? activeProfile.gender
+        : workout.profile?.gender === "female" || workout.profile?.gender === "male"
+          ? workout.profile.gender
+          : FIXED_GENDER,
   };
 
   const manualSpeed =
