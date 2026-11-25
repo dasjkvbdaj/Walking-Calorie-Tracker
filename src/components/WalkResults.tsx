@@ -20,8 +20,8 @@ export function WalkResults({
   const [open, setOpen] = useState(true);
 
   const stats: Array<{ label: string; value: string; unit?: string; sub?: string }> = [
-    { label: "Active Calories", value: fmt.whole(result.netActiveCalories), unit: "kcal" },
-    { label: "Total Calories", value: fmt.whole(result.totalCalories), unit: "kcal" },
+    { label: "Active Calories", value: fmt.calories(result.netActiveCalories), unit: "kcal" },
+    { label: "Total Calories", value: fmt.calories(result.totalCalories), unit: "kcal" },
     { label: "Steps", value: fmt.whole(result.steps), unit: "steps" },
     { label: "Distance", value: fmt.two(result.distanceMi), unit: "mi" },
     { label: "Distance", value: fmt.two(result.distanceKm), unit: "km" },
@@ -64,7 +64,7 @@ export function WalkResults({
 
           <div className="mt-3 flex items-end gap-3">
             <span className="tnum font-extrabold leading-[0.82] tracking-[-0.05em] text-[clamp(3.6rem,14vw,6.8rem)]">
-              {fmt.whole(animatedActive)}
+              {fmt.calories(animatedActive)}
             </span>
             <span className="pb-2.5 font-mono text-[15px] text-signal">kcal active</span>
           </div>
@@ -72,7 +72,7 @@ export function WalkResults({
           <div className="mt-3 flex items-baseline gap-2 font-mono text-[13px] text-muted">
             <span>Total Calories:</span>
             <span className="tnum text-[17px] font-bold text-ink">
-              {fmt.whole(animatedTotal)} kcal
+              {fmt.calories(animatedTotal)} kcal
             </span>
           </div>
 
@@ -147,19 +147,19 @@ function Ledger({ result }: { result: CalculationResult }) {
     },
     {
       label: "Total calories (ACSM)",
-      value: fmt.one(result.totalCalories),
+      value: fmt.calories(result.totalCalories),
       unit: "kcal",
       dim: true,
     },
     {
       label: "Resting calories subtracted (Mifflin-St Jeor)",
-      value: `- ${fmt.one(result.restingCalories)}`,
+      value: `- ${fmt.calories(result.restingCalories)}`,
       unit: "kcal",
       dim: true,
     },
     {
       label: "Active calories (Net)",
-      value: fmt.whole(result.netActiveCalories),
+      value: fmt.calories(result.netActiveCalories),
       unit: "kcal",
       dim: false,
     },
