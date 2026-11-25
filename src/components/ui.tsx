@@ -232,8 +232,13 @@ export function useCountUp(target: number, duration = 700): number {
 
 /* ------------------------------------------------------------- format -- */
 
+export function formatCaloriesDisplay(kcal: number): string {
+  return Math.round(kcal).toLocaleString("en-US");
+}
+
 export const fmt = {
   whole: (n: number) => Math.round(n).toLocaleString("en-US"),
+  calories: (n: number) => formatCaloriesDisplay(n),
   one: (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
   two: (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
 };
