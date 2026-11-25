@@ -34,7 +34,7 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(() => loadTheme());
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const [inputs, setInputs] = useState<CalcInputs>(() => loadCalcInputs());
-  const [history, setHistory] = useState<Workout[]>(() => loadHistory());
+  const [history, setHistory] = useState<Workout[]>(() => loadHistory(loadProfile()));
   const [latestResult, setLatestResult] = useState<CalculationResult | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<number | null>(null);
@@ -416,13 +416,19 @@ function CalculatorView({
                       </span>
                     </div>
                     <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
-                      <span className="font-mono text-[12px] text-muted">Total calories (ACSM)</span>
+                      <span className="font-mono text-[12px] text-muted">ACSM MET</span>
+                      <span className="tnum font-mono text-[13px] font-bold text-ink">
+                        {latestResult.met.met.toFixed(2)} MET
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
+                      <span className="font-mono text-[12px] text-muted">Gross calories (ACSM)</span>
                       <span className="tnum font-mono text-[13px] font-bold text-ink">
                         {fmt.one(latestResult.totalCalories)} kcal
                       </span>
                     </div>
                     <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
-                      <span className="font-mono text-[12px] text-muted">Resting subtracted (BMR)</span>
+                      <span className="font-mono text-[12px] text-muted">Resting component (1 MET)</span>
                       <span className="tnum font-mono text-[13px] font-bold text-ink">
                         - {fmt.one(latestResult.restingCalories)} kcal
                       </span>
