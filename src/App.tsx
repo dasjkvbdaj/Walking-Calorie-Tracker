@@ -105,7 +105,7 @@ export default function App() {
       const calc = runCalculation(values, profile);
       setLatestResult(calc);
       notify(
-        `${fmt.whole(calc.netActiveCalories)} kcal active · ${fmt.whole(calc.totalCalories)} kcal total`,
+        `${fmt.calories(calc.netActiveCalories)} kcal active · ${fmt.calories(calc.totalCalories)} kcal total`,
         "info",
       );
     } catch {
@@ -128,7 +128,7 @@ export default function App() {
     setHistory((prev) =>
       [workout, ...prev].sort((a, b) => b.savedAt - a.savedAt),
     );
-    notify(`${fmt.whole(workout.netActiveCalories)} kcal active`);
+    notify(`${fmt.calories(workout.netActiveCalories)} kcal active`);
   }
 
   function handleUpdateWorkout(id: string, values: CalcNumbers) {
@@ -283,8 +283,8 @@ function CalculatorView({
 
   const metrics = latestResult
     ? [
-        { label: "Active Calories", value: fmt.whole(latestResult.netActiveCalories), unit: "kcal" },
-        { label: "Total Calories", value: fmt.whole(latestResult.totalCalories), unit: "kcal" },
+        { label: "Active Calories", value: fmt.calories(latestResult.netActiveCalories), unit: "kcal" },
+        { label: "Total Calories", value: fmt.calories(latestResult.totalCalories), unit: "kcal" },
         { label: "Steps", value: fmt.whole(latestResult.steps), unit: "steps" },
         { label: "Distance", value: fmt.two(latestResult.distanceMi), unit: "mi" },
         { label: "Distance", value: fmt.two(latestResult.distanceKm), unit: "km" },
@@ -356,7 +356,7 @@ function CalculatorView({
                 <div className="label text-signal mb-2">Active calories burned</div>
                 <div className="flex items-baseline gap-2.5">
                   <span className="tnum text-[48px] font-extrabold leading-none tracking-tighter">
-                    {fmt.whole(latestResult.netActiveCalories)}
+                    {fmt.calories(latestResult.netActiveCalories)}
                   </span>
                   <span className="font-mono text-[13px] text-signal">kcal active</span>
                 </div>
@@ -364,7 +364,7 @@ function CalculatorView({
                 <div className="mt-3 flex items-baseline gap-2 font-mono text-[12.5px] text-muted">
                   <span>Total calories:</span>
                   <span className="tnum text-[16px] font-bold text-ink">
-                    {fmt.whole(latestResult.totalCalories)} kcal
+                    {fmt.calories(latestResult.totalCalories)} kcal
                   </span>
                 </div>
 
@@ -424,19 +424,19 @@ function CalculatorView({
                     <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
                       <span className="font-mono text-[12px] text-muted">Gross calories (ACSM)</span>
                       <span className="tnum font-mono text-[13px] font-bold text-ink">
-                        {fmt.one(latestResult.totalCalories)} kcal
+                        {fmt.calories(latestResult.totalCalories)} kcal
                       </span>
                     </div>
                     <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
                       <span className="font-mono text-[12px] text-muted">Resting component (1 MET)</span>
                       <span className="tnum font-mono text-[13px] font-bold text-ink">
-                        - {fmt.one(latestResult.restingCalories)} kcal
+                        - {fmt.calories(latestResult.restingCalories)} kcal
                       </span>
                     </div>
                     <div className="rounded-xl border border-line bg-panel2 px-4 py-3 flex items-center justify-between">
                       <span className="font-mono text-[12px] text-muted">Active calories (Net)</span>
                       <span className="tnum font-mono text-[13px] font-bold text-signal">
-                        {fmt.whole(latestResult.netActiveCalories)} kcal
+                        {fmt.calories(latestResult.netActiveCalories)} kcal
                       </span>
                     </div>
                   </div>
